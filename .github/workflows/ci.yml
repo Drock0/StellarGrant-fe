@@ -8,6 +8,9 @@ jobs:
   contracts:
     name: Contracts (Rust)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: stellargrant-contracts
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,26 +23,21 @@ jobs:
       - name: Add WASM target
         run: rustup target add wasm32-unknown-unknown
 
-      - name: Rust format/clippy/check
-        run: |
-          set -euo pipefail
+      - name: Format check
+        run: cargo fmt --all -- --check
 
-          if [ -f "Cargo.toml" ]; then
-            CONTRACT_MANIFEST="Cargo.toml"
-          elif [ -f "stellargrant-contracts/Cargo.toml" ]; then
-            CONTRACT_MANIFEST="stellargrant-contracts/Cargo.toml"
-          else
-            echo "Could not find contracts Cargo.toml (expected Cargo.toml or stellargrant-contracts/Cargo.toml)"
-            exit 1
-          fi
+      - name: Clippy (WASM, lib only)
+        run: cargo clippy --workspace --lib --target wasm32-unknown-unknown -- -D warnings
 
-          cargo fmt --manifest-path "$CONTRACT_MANIFEST" --all -- --check
-          cargo clippy --manifest-path "$CONTRACT_MANIFEST" --workspace --all-targets --target wasm32-unknown-unknown -- -D warnings
-          cargo check --manifest-path "$CONTRACT_MANIFEST" --workspace --all-targets --target wasm32-unknown-unknown
+      - name: Check (WASM)
+        run: cargo check --workspace --target wasm32-unknown-unknown
 
   frontend:
     name: Frontend (Next.js)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: stellargrant-fe
     env:
       NEXT_PUBLIC_STELLAR_RPC_URL: https://soroban-testnet.stellar.org
       NEXT_PUBLIC_NETWORK_PASSPHRASE: "Test SDF Network ; September 2015"
@@ -54,50 +52,10 @@ jobs:
           node-version: 20.x
 
       - name: Install deps
-        run: |
-          set -euo pipefail
-
-          if [ -f "package.json" ] && [ -f "package-lock.json" ]; then
-            FRONTEND_DIR="."
-          elif [ -f "stellargrant-fe/package.json" ] && [ -f "stellargrant-fe/package-lock.json" ]; then
-            FRONTEND_DIR="stellargrant-fe"
-          else
-            echo "Could not find frontend package.json/package-lock.json (expected at repo root or in stellargrant-fe/)"
-            exit 1
-          fi
-
-          cd "$FRONTEND_DIR"
-          npm ci
+        run: npm ci
 
       - name: ESLint
-        run: |
-          set -euo pipefail
-
-          if [ -f "package.json" ] && [ -f "package-lock.json" ]; then
-            FRONTEND_DIR="."
-          elif [ -f "stellargrant-fe/package.json" ] && [ -f "stellargrant-fe/package-lock.json" ]; then
-            FRONTEND_DIR="stellargrant-fe"
-          else
-            echo "Could not find frontend package.json/package-lock.json (expected at repo root or in stellargrant-fe/)"
-            exit 1
-          fi
-
-          cd "$FRONTEND_DIR"
-          npm run lint -- .
+        run: npm run lint -- .
 
       - name: Build
-        run: |
-          set -euo pipefail
-
-          if [ -f "package.json" ] && [ -f "package-lock.json" ]; then
-            FRONTEND_DIR="."
-          elif [ -f "stellargrant-fe/package.json" ] && [ -f "stellargrant-fe/package-lock.json" ]; then
-            FRONTEND_DIR="stellargrant-fe"
-          else
-            echo "Could not find frontend package.json/package-lock.json (expected at repo root or in stellargrant-fe/)"
-            exit 1
-          fi
-
-          cd "$FRONTEND_DIR"
-          npm run build
-
+        run: npm run build
