@@ -17,5 +17,6 @@ pub fn milestone_voted(
 ) {
     let topics = (symbol_short!("voted"), grant_id, milestone_idx);
     let data = (reviewer, approve, env.ledger().timestamp());
+    #[allow(deprecated)]
     env.events().publish(topics, data);
 }
