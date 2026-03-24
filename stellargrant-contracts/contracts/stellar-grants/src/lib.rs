@@ -19,6 +19,46 @@ impl StellarGrantsContract {
         Ok(())
     }
 
+    /// Register a contributor profile on-chain
+    pub fn contributor_register(
+        env: Env,
+        contributor: Address,
+        name: String,
+        bio: String,
+        skills: soroban_sdk::Vec<String>,
+        github_url: String,
+    ) -> Result<(), ContractError> {
+        contributor.require_auth();
+
+        if name.is_empty() || name.len() > 100 {
+            return Err(ContractError::InvalidInput);
+        }
+        if bio.len() > 500 {
+            return Err(ContractError::InvalidInput);
+        }
+
+        if Storage::get_contributor(&env, contributor.clone()).is_some() {
+            return Err(ContractError::AlreadyRegistered);
+        }
+
+        let profile = crate::types::ContributorProfile {
+            contributor: contributor.clone(),
+            name: name.clone(),
+            bio,
+            skills,
+            github_url,
+            registration_timestamp: env.ledger().timestamp(),
+            grants_count: 0,
+            total_earned: 0,
+        };
+
+        Storage::set_contributor(&env, contributor.clone(), &profile);
+
+        Events::emit_contributor_registered(&env, contributor, name);
+
+        Ok(())
+    }
+
     /// Cancel a grant and refund remaining balance to funders
     pub fn grant_cancel(
         env: Env,

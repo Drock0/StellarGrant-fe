@@ -17,6 +17,7 @@ pub enum ContractError {
     InvalidState = 10,
     NoRefundableAmount = 11,
     NotAllMilestonesApproved = 12,
+    AlreadyRegistered = 13,
 }
 
 #[contracttype]
@@ -76,4 +77,17 @@ pub struct Grant {
     pub funders: Vec<GrantFund>,
     pub reason: Option<String>,
     pub timestamp: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ContributorProfile {
+    pub contributor: Address,
+    pub name: String,
+    pub bio: String,
+    pub skills: Vec<String>,
+    pub github_url: String,
+    pub registration_timestamp: u64,
+    pub grants_count: u32,
+    pub total_earned: i128,
 }

@@ -514,4 +514,70 @@ mod tests {
         let result = client.try_get_grant(&invalid_grant_id);
         assert_eq!(result, Err(Ok(ContractError::GrantNotFound.into())));
     }
+
+    #[test]
+    fn test_contributor_register_success() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let (client, _, _) = setup_test(&env);
+        let contributor = Address::generate(&env);
+
+        let name = String::from_str(&env, "Alice");
+        let bio = String::from_str(&env, "Rust Developer");
+        let mut skills = Vec::new(&env);
+        skills.push_back(String::from_str(&env, "Rust"));
+        skills.push_back(String::from_str(&env, "Soroban"));
+        let github_url = String::from_str(&env, "https://github.com/alice");
+
+        client.contributor_register(&contributor, &name, &bio, &skills, &github_url);
+
+        // Cannot verify storage directly from client, but we can check if duplicate fails
+        let result =
+            client.try_contributor_register(&contributor, &name, &bio, &skills, &github_url);
+        assert_eq!(result, Err(Ok(ContractError::AlreadyRegistered.into())));
+    }
+
+    #[test]
+    fn test_contributor_register_empty_name() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let (client, _, _) = setup_test(&env);
+        let contributor = Address::generate(&env);
+
+        let name = String::from_str(&env, "");
+        let bio = String::from_str(&env, "Bio");
+        let skills = Vec::new(&env);
+        let github_url = String::from_str(&env, "");
+
+        let result =
+            client.try_contributor_register(&contributor, &name, &bio, &skills, &github_url);
+        assert_eq!(result, Err(Ok(ContractError::InvalidInput.into())));
+    }
+
+    #[test]
+    fn test_contributor_register_long_bio() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let (client, _, _) = setup_test(&env);
+        let contributor = Address::generate(&env);
+
+        let name = String::from_str(&env, "Bob");
+
+        let mut long_bio_bytes = [0u8; 501];
+        for i in 0..501 {
+            long_bio_bytes[i] = b'A';
+        }
+        let bio_str = core::str::from_utf8(&long_bio_bytes).unwrap();
+        let bio = String::from_str(&env, bio_str);
+
+        let skills = Vec::new(&env);
+        let github_url = String::from_str(&env, "");
+
+        let result =
+            client.try_contributor_register(&contributor, &name, &bio, &skills, &github_url);
+        assert_eq!(result, Err(Ok(ContractError::InvalidInput.into())));
+    }
 }

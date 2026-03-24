@@ -6,6 +6,7 @@ pub enum DataKey {
     Grant(u64),
     Milestone(u64, u32),
     GrantCounter,
+    Contributor(soroban_sdk::Address),
 }
 
 pub struct Storage;
@@ -48,5 +49,24 @@ impl Storage {
             .persistent()
             .set(&DataKey::GrantCounter, &counter);
         counter
+    }
+
+    pub fn get_contributor(
+        env: &Env,
+        contributor: soroban_sdk::Address,
+    ) -> Option<crate::types::ContributorProfile> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Contributor(contributor))
+    }
+
+    pub fn set_contributor(
+        env: &Env,
+        contributor: soroban_sdk::Address,
+        profile: &crate::types::ContributorProfile,
+    ) {
+        env.storage()
+            .persistent()
+            .set(&DataKey::Contributor(contributor), profile);
     }
 }

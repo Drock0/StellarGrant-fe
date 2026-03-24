@@ -65,6 +65,14 @@ pub struct FinalRefund {
     pub amount: i128,
 }
 
+#[contractevent]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ContributorRegistered {
+    pub contributor: Address,
+    pub name: String,
+    pub timestamp: u64,
+}
+
 pub struct Events;
 
 impl Events {
@@ -114,6 +122,15 @@ impl Events {
             grant_id,
             funder,
             amount,
+        };
+        event.publish(env);
+    }
+
+    pub fn emit_contributor_registered(env: &Env, contributor: Address, name: String) {
+        let event = ContributorRegistered {
+            contributor,
+            name,
+            timestamp: env.ledger().timestamp(),
         };
         event.publish(env);
     }
