@@ -33,6 +33,15 @@ pub struct MilestoneStatusChanged {
 
 #[contractevent]
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MilestonePaid {
+    pub grant_id: u64,
+    pub milestone_idx: u32,
+    pub amount: i128,
+    pub timestamp: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GrantCancelled {
     pub grant_id: u64,
     pub owner: Address,
@@ -44,6 +53,14 @@ pub struct GrantCancelled {
 #[contractevent]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RefundExecuted {
+    pub grant_id: u64,
+    pub funder: Address,
+    pub amount: i128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RefundIssued {
     pub grant_id: u64,
     pub funder: Address,
     pub amount: i128,
@@ -76,6 +93,15 @@ pub struct ContributorRegistered {
 
 #[contractevent]
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ReputationIncreased {
+    pub contributor: Address,
+    pub new_reputation_score: u64,
+    pub total_earned: i128,
+    pub timestamp: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MilestoneSubmitted {
     pub grant_id: u64,
     pub milestone_idx: u32,
@@ -103,6 +129,16 @@ pub struct GrantCreated {
     pub timestamp: u64,
 }
 
+#[contractevent]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GrantMetadataUpdated {
+    pub grant_id: u64,
+    pub owner: Address,
+    pub title: String,
+    pub description: String,
+    pub timestamp: u64,
+}
+
 pub struct Events;
 
 impl Events {
@@ -125,6 +161,15 @@ impl Events {
 
     pub fn emit_refund_executed(env: &Env, grant_id: u64, funder: Address, amount: i128) {
         let event = RefundExecuted {
+            grant_id,
+            funder,
+            amount,
+        };
+        event.publish(env);
+    }
+
+    pub fn emit_refund_issued(env: &Env, grant_id: u64, funder: Address, amount: i128) {
+        let event = RefundIssued {
             grant_id,
             funder,
             amount,
@@ -205,10 +250,42 @@ impl Events {
         event.publish(env);
     }
 
+    pub fn emit_grant_metadata_updated(
+        env: &Env,
+        grant_id: u64,
+        owner: Address,
+        title: String,
+        description: String,
+    ) {
+        let event = GrantMetadataUpdated {
+            grant_id,
+            owner,
+            title,
+            description,
+            timestamp: env.ledger().timestamp(),
+        };
+        event.publish(env);
+    }
+
     pub fn emit_contributor_registered(env: &Env, contributor: Address, name: String) {
         let event = ContributorRegistered {
             contributor,
             name,
+            timestamp: env.ledger().timestamp(),
+        };
+        event.publish(env);
+    }
+
+    pub fn emit_reputation_increased(
+        env: &Env,
+        contributor: Address,
+        new_reputation_score: u64,
+        total_earned: i128,
+    ) {
+        let event = ReputationIncreased {
+            contributor,
+            new_reputation_score,
+            total_earned,
             timestamp: env.ledger().timestamp(),
         };
         event.publish(env);
@@ -260,6 +337,16 @@ impl Events {
             grant_id,
             milestone_idx,
             new_state,
+            timestamp: env.ledger().timestamp(),
+        };
+        event.publish(env);
+    }
+
+    pub fn emit_milestone_paid(env: &Env, grant_id: u64, milestone_idx: u32, amount: i128) {
+        let event = MilestonePaid {
+            grant_id,
+            milestone_idx,
+            amount,
             timestamp: env.ledger().timestamp(),
         };
         event.publish(env);

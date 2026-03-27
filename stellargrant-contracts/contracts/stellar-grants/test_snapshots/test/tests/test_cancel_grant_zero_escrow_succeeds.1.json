@@ -6,6 +6,7 @@
   },
   "auth": [
     [],
+    [],
     [
       [
         "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M",
@@ -13,31 +14,16 @@
           "function": {
             "contract_fn": {
               "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-              "function_name": "grant_create",
+              "function_name": "cancel_grant",
               "args": [
+                {
+                  "u64": "12"
+                },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
                 },
                 {
-                  "string": "New Grant"
-                },
-                {
-                  "string": "Some desc"
-                },
-                {
-                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
-                },
-                {
-                  "i128": "1000"
-                },
-                {
-                  "i128": "500"
-                },
-                {
-                  "u32": 2
-                },
-                {
-                  "vec": []
+                  "string": "No traction"
                 }
               ]
             }
@@ -68,70 +54,10 @@
               "key": {
                 "vec": [
                   {
-                    "symbol": "EscrowState"
-                  },
-                  {
-                    "u64": "1"
-                  }
-                ]
-              },
-              "durability": "persistent",
-              "val": {
-                "map": [
-                  {
-                    "key": {
-                      "symbol": "approvals_count"
-                    },
-                    "val": {
-                      "u32": 0
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "lifecycle"
-                    },
-                    "val": {
-                      "u32": 1
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "mode"
-                    },
-                    "val": {
-                      "u32": 1
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "quorum_ready"
-                    },
-                    "val": {
-                      "bool": false
-                    }
-                  }
-                ]
-              }
-            }
-          },
-          "ext": "v0"
-        },
-        "live_until": 4095
-      },
-      {
-        "entry": {
-          "last_modified_ledger_seq": 0,
-          "data": {
-            "contract_data": {
-              "ext": "v0",
-              "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-              "key": {
-                "vec": [
-                  {
                     "symbol": "Grant"
                   },
                   {
-                    "u64": "1"
+                    "u64": "12"
                   }
                 ]
               },
@@ -143,7 +69,7 @@
                       "symbol": "description"
                     },
                     "val": {
-                      "string": "Some desc"
+                      "string": "Desc"
                     }
                   },
                   {
@@ -167,7 +93,7 @@
                       "symbol": "id"
                     },
                     "val": {
-                      "u64": "1"
+                      "u64": "12"
                     }
                   },
                   {
@@ -198,7 +124,9 @@
                     "key": {
                       "symbol": "reason"
                     },
-                    "val": "void"
+                    "val": {
+                      "string": "No traction"
+                    }
                   },
                   {
                     "key": {
@@ -213,7 +141,7 @@
                       "symbol": "status"
                     },
                     "val": {
-                      "u32": 1
+                      "u32": 2
                     }
                   },
                   {
@@ -229,7 +157,7 @@
                       "symbol": "title"
                     },
                     "val": {
-                      "string": "New Grant"
+                      "string": "No funds"
                     }
                   },
                   {
@@ -257,84 +185,6 @@
                     }
                   }
                 ]
-              }
-            }
-          },
-          "ext": "v0"
-        },
-        "live_until": 4095
-      },
-      {
-        "entry": {
-          "last_modified_ledger_seq": 0,
-          "data": {
-            "contract_data": {
-              "ext": "v0",
-              "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-              "key": {
-                "vec": [
-                  {
-                    "symbol": "GrantCounter"
-                  }
-                ]
-              },
-              "durability": "persistent",
-              "val": {
-                "u64": "1"
-              }
-            }
-          },
-          "ext": "v0"
-        },
-        "live_until": 4095
-      },
-      {
-        "entry": {
-          "last_modified_ledger_seq": 0,
-          "data": {
-            "contract_data": {
-              "ext": "v0",
-              "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-              "key": {
-                "vec": [
-                  {
-                    "symbol": "GrantMinReputation"
-                  },
-                  {
-                    "u64": "1"
-                  }
-                ]
-              },
-              "durability": "persistent",
-              "val": {
-                "u64": "0"
-              }
-            }
-          },
-          "ext": "v0"
-        },
-        "live_until": 4095
-      },
-      {
-        "entry": {
-          "last_modified_ledger_seq": 0,
-          "data": {
-            "contract_data": {
-              "ext": "v0",
-              "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-              "key": {
-                "vec": [
-                  {
-                    "symbol": "MultisigSigners"
-                  },
-                  {
-                    "u64": "1"
-                  }
-                ]
-              },
-              "durability": "persistent",
-              "val": {
-                "vec": []
               }
             }
           },

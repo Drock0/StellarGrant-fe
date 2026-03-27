@@ -1,4 +1,4 @@
-use crate::types::{Grant, Milestone};
+use crate::types::{EscrowLifecycleState, EscrowMode, EscrowState, Grant, Milestone};
 use soroban_sdk::{contracttype, Env};
 
 #[contracttype]
@@ -16,6 +16,12 @@ pub enum DataKey {
     /// Identity oracle contract address for KYC verification
     IdentityOracle,
     ReviewerReputation(soroban_sdk::Address),
+    GlobalAdmin,
+    Council,
+    EscrowState(u64),
+    MultisigSigners(u64),
+    ReleaseSignerApproval(u64, soroban_sdk::Address),
+    GrantMinReputation(u64),
 }
 
 pub struct Storage;
@@ -69,6 +75,22 @@ impl Storage {
 
     pub fn get_identity_oracle(env: &Env) -> Option<soroban_sdk::Address> {
         env.storage().persistent().get(&DataKey::IdentityOracle)
+    }
+
+    pub fn get_global_admin(env: &Env) -> Option<soroban_sdk::Address> {
+        env.storage().persistent().get(&DataKey::GlobalAdmin)
+    }
+
+    pub fn set_global_admin(env: &Env, admin: &soroban_sdk::Address) {
+        env.storage().persistent().set(&DataKey::GlobalAdmin, admin);
+    }
+
+    pub fn get_council(env: &Env) -> Option<soroban_sdk::Address> {
+        env.storage().persistent().get(&DataKey::Council)
+    }
+
+    pub fn set_council(env: &Env, council: &soroban_sdk::Address) {
+        env.storage().persistent().set(&DataKey::Council, council);
     }
 
     pub fn get_grant(env: &Env, grant_id: u64) -> Option<Grant> {
@@ -147,5 +169,75 @@ impl Storage {
         env.storage()
             .persistent()
             .set(&DataKey::ReviewerReputation(reviewer), &score);
+    }
+
+    pub fn get_escrow_state(env: &Env, grant_id: u64) -> EscrowState {
+        env.storage()
+            .persistent()
+            .get(&DataKey::EscrowState(grant_id))
+            .unwrap_or(EscrowState {
+                mode: EscrowMode::Standard,
+                lifecycle: EscrowLifecycleState::Funding,
+                quorum_ready: false,
+                approvals_count: 0,
+            })
+    }
+
+    pub fn set_escrow_state(env: &Env, grant_id: u64, state: &EscrowState) {
+        env.storage()
+            .persistent()
+            .set(&DataKey::EscrowState(grant_id), state);
+    }
+
+    pub fn get_multisig_signers(
+        env: &Env,
+        grant_id: u64,
+    ) -> soroban_sdk::Vec<soroban_sdk::Address> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::MultisigSigners(grant_id))
+            .unwrap_or(soroban_sdk::Vec::new(env))
+    }
+
+    pub fn set_multisig_signers(
+        env: &Env,
+        grant_id: u64,
+        signers: &soroban_sdk::Vec<soroban_sdk::Address>,
+    ) {
+        env.storage()
+            .persistent()
+            .set(&DataKey::MultisigSigners(grant_id), signers);
+    }
+
+    pub fn has_release_approval(env: &Env, grant_id: u64, signer: &soroban_sdk::Address) -> bool {
+        env.storage()
+            .persistent()
+            .get(&DataKey::ReleaseSignerApproval(grant_id, signer.clone()))
+            .unwrap_or(false)
+    }
+
+    pub fn set_release_approval(
+        env: &Env,
+        grant_id: u64,
+        signer: &soroban_sdk::Address,
+        approved: bool,
+    ) {
+        env.storage().persistent().set(
+            &DataKey::ReleaseSignerApproval(grant_id, signer.clone()),
+            &approved,
+        );
+    }
+
+    pub fn get_grant_min_reputation(env: &Env, grant_id: u64) -> u64 {
+        env.storage()
+            .persistent()
+            .get(&DataKey::GrantMinReputation(grant_id))
+            .unwrap_or(0)
+    }
+
+    pub fn set_grant_min_reputation(env: &Env, grant_id: u64, min_reputation: u64) {
+        env.storage()
+            .persistent()
+            .set(&DataKey::GrantMinReputation(grant_id), &min_reputation);
     }
 }

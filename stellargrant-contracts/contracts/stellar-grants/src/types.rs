@@ -24,6 +24,38 @@ pub enum ContractError {
     NotVerified = 17,
     BatchEmpty = 18,
     BatchTooLarge = 19,
+    ReentrancyDetected = 20,
+    NotMultisigSigner = 21,
+    AlreadySignedRelease = 22,
+    ReleaseNotReady = 23,
+    GrantAlreadyReleased = 24,
+    InsufficientReputation = 25,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[repr(u32)]
+pub enum EscrowMode {
+    Standard = 1,
+    HighSecurity = 2,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[repr(u32)]
+pub enum EscrowLifecycleState {
+    Funding = 1,
+    AwaitingMultisig = 2,
+    Released = 3,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EscrowState {
+    pub mode: EscrowMode,
+    pub lifecycle: EscrowLifecycleState,
+    pub quorum_ready: bool,
+    pub approvals_count: u32,
 }
 
 #[contracttype]
@@ -33,7 +65,9 @@ pub enum MilestoneState {
     Pending = 0,
     Submitted = 1,
     Approved = 2,
-    Rejected = 3,
+    Paid = 3,
+    Rejected = 4,
+    Disputed = 5,
 }
 
 #[contracttype]
@@ -50,6 +84,14 @@ pub struct Milestone {
     pub status_updated_at: u64,
     pub proof_url: Option<String>,
     pub submission_timestamp: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MilestoneSubmission {
+    pub idx: u32,
+    pub description: String,
+    pub proof: String,
 }
 
 #[contracttype]
@@ -97,6 +139,7 @@ pub struct ContributorProfile {
     pub skills: Vec<String>,
     pub github_url: String,
     pub registration_timestamp: u64,
+    pub reputation_score: u64,
     pub grants_count: u32,
     pub total_earned: i128,
 }
