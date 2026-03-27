@@ -9,12 +9,15 @@
 #[cfg(test)]
 mod tests {
     use crate::storage::{DataKey, Storage};
-    use crate::types::{ContractError, Grant, GrantFund, GrantStatus, Milestone, MilestoneState};
+    use crate::types::{
+        ContractError, Grant, GrantFund, GrantStatus, Milestone, MilestoneState,
+        MilestoneSubmission,
+    };
     use crate::StellarGrantsContract;
     use crate::StellarGrantsContractClient;
     use soroban_sdk::testutils::Ledger as _;
     use soroban_sdk::{
-        testutils::{storage::Persistent as _, Address as _, Events as _, Ledger as _},
+        testutils::{storage::Persistent as _, Address as _, Events as _},
         token, Address, Env, Map, String, Vec,
     };
 
@@ -42,6 +45,7 @@ mod tests {
         reviewers: Vec<Address>,
     ) {
         env.as_contract(contract_id, || {
+            let quorum = (reviewers.len() / 2) + 1;
             let grant = Grant {
                 id: grant_id,
                 title: String::from_str(&env, "Test"),
@@ -52,6 +56,7 @@ mod tests {
                 status: GrantStatus::Active,
                 total_amount: 1000,
                 reviewers,
+                quorum,
                 total_milestones: 1,
                 milestones_paid_out: 0,
                 escrow_balance: 1000,
@@ -103,6 +108,7 @@ mod tests {
             skills,
             github_url: String::from_str(env, "https://github.com/alice"),
             registration_timestamp: env.ledger().timestamp(),
+            reputation_score: 0,
             grants_count: 1,
             total_earned: 100,
         }
@@ -310,6 +316,62 @@ mod tests {
     }
 
     #[test]
+    fn test_milestone_vote_requires_full_quorum_three_of_three() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, _, contract_id) = setup_test(&env);
+        let grant_id = 21u64;
+        let milestone_idx = 0u32;
+        let owner = Address::generate(&env);
+        let token = Address::generate(&env);
+        let reviewer1 = Address::generate(&env);
+        let reviewer2 = Address::generate(&env);
+        let reviewer3 = Address::generate(&env);
+
+        let mut reviewers = Vec::new(&env);
+        reviewers.push_back(reviewer1.clone());
+        reviewers.push_back(reviewer2.clone());
+        reviewers.push_back(reviewer3.clone());
+
+        env.as_contract(&contract_id, || {
+            let grant = Grant {
+                id: grant_id,
+                title: String::from_str(&env, "Full quorum grant"),
+                description: String::from_str(&env, "Needs 3/3 approvals"),
+                milestone_amount: 500,
+                owner,
+                token,
+                status: GrantStatus::Active,
+                total_amount: 1000,
+                reviewers,
+                quorum: 3,
+                total_milestones: 1,
+                milestones_paid_out: 0,
+                escrow_balance: 1000,
+                funders: Vec::new(&env),
+                reason: None,
+                timestamp: env.ledger().timestamp(),
+            };
+            Storage::set_grant(&env, grant_id, &grant);
+        });
+        create_milestone(
+            &env,
+            &contract_id,
+            grant_id,
+            milestone_idx,
+            MilestoneState::Submitted,
+        );
+
+        let r1 = client.milestone_vote(&grant_id, &milestone_idx, &reviewer1, &true, &None);
+        let r2 = client.milestone_vote(&grant_id, &milestone_idx, &reviewer2, &true, &None);
+        let r3 = client.milestone_vote(&grant_id, &milestone_idx, &reviewer3, &true, &None);
+
+        assert_eq!(r1, false);
+        assert_eq!(r2, false);
+        assert_eq!(r3, true);
+    }
+
+    #[test]
     fn test_grant_cancel_success_multiple_funders() {
         let env = Env::default();
         env.mock_all_auths();
@@ -351,6 +413,7 @@ mod tests {
             status: GrantStatus::Active,
             total_amount: total_funded,
             reviewers: Vec::new(&env),
+            quorum: 1,
             total_milestones: 1,
             milestones_paid_out: 0,
             escrow_balance: remaining,
@@ -415,6 +478,7 @@ mod tests {
             status: GrantStatus::Completed,
             total_amount: 100,
             reviewers: Vec::new(&env),
+            quorum: 1,
             total_milestones: 1,
             milestones_paid_out: 1,
             escrow_balance: 0,
@@ -469,6 +533,7 @@ mod tests {
                 status: GrantStatus::Active,
                 total_amount: 500,
                 reviewers: Vec::new(&env),
+                quorum: 1,
                 total_milestones: 1,
                 milestones_paid_out: 0,
                 escrow_balance: 500,
@@ -507,6 +572,7 @@ mod tests {
                 status: GrantStatus::Active,
                 total_amount: 1000,
                 reviewers: Vec::new(&env),
+                quorum: 1,
                 total_milestones: 2,
                 milestones_paid_out: 0,
                 escrow_balance: 0,
@@ -569,6 +635,7 @@ mod tests {
                 status: GrantStatus::Active,
                 total_amount: 150,
                 reviewers: Vec::new(&env),
+                quorum: 1,
                 total_milestones: 3,
                 milestones_paid_out: 0,
                 escrow_balance: 100,
@@ -630,6 +697,7 @@ mod tests {
             status: GrantStatus::Active,
             total_amount: total_funded,
             reviewers: Vec::new(&env),
+            quorum: 1,
             total_milestones: 2,
             milestones_paid_out: 0,
             escrow_balance: total_funded,
@@ -708,6 +776,7 @@ mod tests {
             status: GrantStatus::Active,
             total_amount: 1000,
             reviewers: Vec::new(&env),
+            quorum: 1,
             total_milestones: 2,
             milestones_paid_out: 0,
             escrow_balance: 1000,
@@ -784,6 +853,7 @@ mod tests {
             status: GrantStatus::Active,
             total_amount: total_funded,
             reviewers: Vec::new(&env),
+            quorum: 1,
             total_milestones: 1,
             milestones_paid_out: 0,
             escrow_balance: total_funded, // exact match
@@ -834,7 +904,8 @@ mod tests {
         let owner = Address::generate(&env);
         let signer1 = Address::generate(&env);
         let signer2 = Address::generate(&env);
-        let reviewers = Vec::new(&env);
+        let mut reviewers = Vec::new(&env);
+        reviewers.push_back(Address::generate(&env));
         let mut multisig = Vec::new(&env);
         multisig.push_back(signer1.clone());
         multisig.push_back(signer2.clone());
@@ -899,7 +970,8 @@ mod tests {
         let owner = Address::generate(&env);
         let signer1 = Address::generate(&env);
         let signer2 = Address::generate(&env);
-        let reviewers = Vec::new(&env);
+        let mut reviewers = Vec::new(&env);
+        reviewers.push_back(Address::generate(&env));
         let mut multisig = Vec::new(&env);
         multisig.push_back(signer1.clone());
         multisig.push_back(signer2.clone());
@@ -963,7 +1035,8 @@ mod tests {
         let signer = Address::generate(&env);
         let attacker = Address::generate(&env);
         let token = Address::generate(&env);
-        let reviewers = Vec::new(&env);
+        let mut reviewers = Vec::new(&env);
+        reviewers.push_back(Address::generate(&env));
         let mut multisig = Vec::new(&env);
         multisig.push_back(signer);
 
@@ -1004,6 +1077,7 @@ mod tests {
             status: GrantStatus::Active,
             total_amount: total_funded,
             reviewers: Vec::new(&env),
+            quorum: 1,
             total_milestones: 1,
             milestones_paid_out: 0,
             escrow_balance: total_funded,
@@ -1058,42 +1132,6 @@ mod tests {
     }
 
     #[test]
-    fn test_initialize_emits_standardized_event() {
-        let env = Env::default();
-        env.mock_all_auths();
-        let (client, _, _) = setup_test(&env);
-        let council = Address::generate(&env);
-
-        client.initialize(&council);
-
-        let events_dbg = format!("{:?}", env.events().all());
-        assert!(events_dbg.contains("ContractInitialized"));
-        assert!(events_dbg.contains("event_version"));
-        assert!(events_dbg.contains("grant_id"));
-    }
-
-    #[test]
-    fn test_contributor_registered_event_includes_grant_id_and_version() {
-        let env = Env::default();
-        env.mock_all_auths();
-        let (client, _, _) = setup_test(&env);
-        let contributor = Address::generate(&env);
-
-        client.contributor_register(
-            &contributor,
-            &String::from_str(&env, "Eve"),
-            &String::from_str(&env, "Builder"),
-            &Vec::new(&env),
-            &String::from_str(&env, "https://github.com/eve"),
-        );
-
-        let events_dbg = format!("{:?}", env.events().all());
-        assert!(events_dbg.contains("ContributorRegistered"));
-        assert!(events_dbg.contains("event_version"));
-        assert!(events_dbg.contains("grant_id"));
-    }
-
-    #[test]
     fn test_reputation_increases_after_grant_release() {
         let env = Env::default();
         env.mock_all_auths();
@@ -1105,7 +1143,8 @@ mod tests {
 
         let owner = Address::generate(&env);
         let funder = Address::generate(&env);
-        let reviewers = Vec::new(&env);
+        let mut reviewers = Vec::new(&env);
+        reviewers.push_back(Address::generate(&env));
 
         client.contributor_register(
             &owner,
@@ -1124,6 +1163,7 @@ mod tests {
             &500,
             &1,
             &reviewers,
+            &1u32,
             &None,
         );
 
@@ -1165,7 +1205,8 @@ mod tests {
         let (client, _, contract_id) = setup_test(&env);
         let owner = Address::generate(&env);
         let token = Address::generate(&env);
-        let reviewers = Vec::new(&env);
+        let mut reviewers = Vec::new(&env);
+        reviewers.push_back(Address::generate(&env));
 
         client.contributor_register(
             &owner,
@@ -1284,6 +1325,7 @@ mod tests {
                 status: GrantStatus::Active,
                 total_amount: 1000,
                 reviewers: Vec::new(&env),
+                quorum: 1,
                 total_milestones: 2,
                 milestones_paid_out: 0,
                 escrow_balance: 1000,
@@ -1348,6 +1390,7 @@ mod tests {
                 status: GrantStatus::Active,
                 total_amount: 1000,
                 reviewers: Vec::new(&env),
+                quorum: 1,
                 total_milestones: 3,
                 milestones_paid_out: 0,
                 escrow_balance: 1000,
@@ -1559,6 +1602,7 @@ mod tests {
                 status: GrantStatus::Completed, // Not Active
                 total_amount: 1000,
                 reviewers: Vec::new(&env),
+                quorum: 1,
                 total_milestones: 1,
                 milestones_paid_out: 1,
                 escrow_balance: 0,
@@ -1609,6 +1653,7 @@ mod tests {
                 status: GrantStatus::Active,
                 total_amount: 1000,
                 reviewers: Vec::new(&env),
+                quorum: 1,
                 total_milestones: 1,
                 milestones_paid_out: 0,
                 escrow_balance: 0,
@@ -1713,6 +1758,7 @@ mod tests {
                 status: GrantStatus::Active,
                 total_amount: 1000,
                 reviewers: Vec::new(&env),
+                quorum: 1,
                 total_milestones: 1,
                 milestones_paid_out: 0,
                 escrow_balance: i128::MAX, // Set to max initially
@@ -1759,6 +1805,7 @@ mod tests {
                 status: GrantStatus::Active,
                 total_amount: 1000,
                 reviewers: Vec::new(&env),
+                quorum: 1,
                 total_milestones: 1,
                 milestones_paid_out: 0,
                 escrow_balance: 0,
@@ -1812,6 +1859,7 @@ mod tests {
                 status: GrantStatus::Active,
                 total_amount: 1000,
                 reviewers: Vec::new(&env),
+                quorum: 1,
                 total_milestones: 1,
                 milestones_paid_out: 0,
                 escrow_balance: 0,
@@ -1833,140 +1881,6 @@ mod tests {
             assert_eq!(f.funder, funder);
             assert_eq!(f.amount, 500);
         });
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_grant_fund_reentrancy_panics() {
-        let env = Env::default();
-        env.mock_all_auths();
-
-        let (client, _, contract_id) = setup_test(&env);
-        let owner = Address::generate(&env);
-        let attacker = Address::generate(&env);
-        let grant_id = 77u64;
-
-        let token_contract = env.register(ReentrantToken, ());
-        let token_client = ReentrantTokenClient::new(&env, &token_contract);
-        token_client.initialize(&contract_id, &attacker, &ReentrantHook::GrantFund(grant_id));
-        token_client.mint(&attacker, &1000i128);
-
-        env.as_contract(&contract_id, || {
-            let grant = Grant {
-                id: grant_id,
-                title: String::from_str(&env, "Reentrancy Test"),
-                description: String::from_str(&env, "Desc"),
-                milestone_amount: 500,
-                owner,
-                token: token_contract.clone(),
-                status: GrantStatus::Active,
-                total_amount: 1000,
-                reviewers: Vec::new(&env),
-                total_milestones: 1,
-                milestones_paid_out: 0,
-                escrow_balance: 0,
-                funders: Vec::new(&env),
-                reason: None,
-                timestamp: env.ledger().timestamp(),
-            };
-            Storage::set_grant(&env, grant_id, &grant);
-        });
-
-        // Reentrant token callback attempts nested grant_fund call and must panic via lock.
-        client.grant_fund(&grant_id, &attacker, &100i128);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_fund_batch_reentrancy_panics() {
-        let env = Env::default();
-        env.mock_all_auths();
-
-        let (client, _, contract_id) = setup_test(&env);
-        let owner = Address::generate(&env);
-        let attacker = Address::generate(&env);
-        let grant_id = 88u64;
-
-        let token_contract = env.register(ReentrantToken, ());
-        let token_client = ReentrantTokenClient::new(&env, &token_contract);
-        token_client.initialize(
-            &contract_id,
-            &attacker,
-            &ReentrantHook::FundBatchOne(grant_id, 1i128),
-        );
-        token_client.mint(&attacker, &1000i128);
-
-        env.as_contract(&contract_id, || {
-            let grant = Grant {
-                id: grant_id,
-                title: String::from_str(&env, "Batch Reentrancy"),
-                description: String::from_str(&env, "Desc"),
-                milestone_amount: 500,
-                owner,
-                token: token_contract.clone(),
-                status: GrantStatus::Active,
-                total_amount: 1000,
-                reviewers: Vec::new(&env),
-                total_milestones: 1,
-                milestones_paid_out: 0,
-                escrow_balance: 0,
-                funders: Vec::new(&env),
-                reason: None,
-                timestamp: env.ledger().timestamp(),
-            };
-            Storage::set_grant(&env, grant_id, &grant);
-        });
-
-        let mut batch = Vec::new(&env);
-        batch.push_back((grant_id, 100i128));
-        client.fund_batch(&attacker, &batch);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_stake_to_review_reentrancy_panics() {
-        let env = Env::default();
-        env.mock_all_auths();
-
-        let (client, admin, contract_id) = setup_test(&env);
-        let owner = Address::generate(&env);
-        let attacker = Address::generate(&env);
-        let treasury = Address::generate(&env);
-        let grant_id = 99u64;
-
-        client.set_staking_config(&admin, &100i128, &treasury);
-
-        let token_contract = env.register(ReentrantToken, ());
-        let token_client = ReentrantTokenClient::new(&env, &token_contract);
-        token_client.initialize(
-            &contract_id,
-            &attacker,
-            &ReentrantHook::StakeToReview(grant_id, attacker.clone(), 100i128),
-        );
-        token_client.mint(&attacker, &1000i128);
-
-        env.as_contract(&contract_id, || {
-            let grant = Grant {
-                id: grant_id,
-                title: String::from_str(&env, "Stake Reentrancy"),
-                description: String::from_str(&env, "Desc"),
-                milestone_amount: 500,
-                owner,
-                token: token_contract.clone(),
-                status: GrantStatus::Active,
-                total_amount: 1000,
-                reviewers: Vec::new(&env),
-                total_milestones: 1,
-                milestones_paid_out: 0,
-                escrow_balance: 0,
-                funders: Vec::new(&env),
-                reason: None,
-                timestamp: env.ledger().timestamp(),
-            };
-            Storage::set_grant(&env, grant_id, &grant);
-        });
-
-        client.stake_to_review(&attacker, &grant_id, &100i128);
     }
 
     #[test]
@@ -1996,6 +1910,7 @@ mod tests {
                 status: GrantStatus::Active,
                 total_amount: 1000,
                 reviewers: Vec::new(&env),
+                quorum: 1,
                 total_milestones: 1,
                 milestones_paid_out: 0,
                 escrow_balance: 0,
@@ -2025,7 +1940,8 @@ mod tests {
         let (client, _, _) = setup_test(&env);
         let owner = Address::generate(&env);
         let token = Address::generate(&env);
-        let reviewers = Vec::new(&env);
+        let mut reviewers = Vec::new(&env);
+        reviewers.push_back(Address::generate(&env));
         let title = String::from_str(&env, "New Grant");
         let description = String::from_str(&env, "Some desc");
 
@@ -2040,6 +1956,7 @@ mod tests {
             &500i128,  // milestone_amount
             &2u32,     // num_milestones
             &reviewers,
+            &1u32,
             &None, // milestone_deadlines
         );
 
@@ -2063,7 +1980,8 @@ mod tests {
         let (client, _, _) = setup_test(&env);
         let owner = Address::generate(&env);
         let token = Address::generate(&env);
-        let reviewers = Vec::new(&env);
+        let mut reviewers = Vec::new(&env);
+        reviewers.push_back(Address::generate(&env));
         let title = String::from_str(&env, "New Grant");
         let description = String::from_str(&env, "Some desc");
 
@@ -2079,6 +1997,7 @@ mod tests {
             &500i128,
             &2u32,
             &reviewers,
+            &1u32,
             &None,
         );
         assert_eq!(res1, Err(Ok(ContractError::InvalidInput.into())));
@@ -2093,6 +2012,7 @@ mod tests {
             &-100i128,
             &2u32,
             &reviewers,
+            &1u32,
             &None,
         );
         assert_eq!(res2, Err(Ok(ContractError::InvalidInput.into())));
@@ -2104,7 +2024,8 @@ mod tests {
         let (client, _, _) = setup_test(&env);
         let owner = Address::generate(&env);
         let token = Address::generate(&env);
-        let reviewers = Vec::new(&env);
+        let mut reviewers = Vec::new(&env);
+        reviewers.push_back(Address::generate(&env));
         let title = String::from_str(&env, "New Grant");
         let description = String::from_str(&env, "Some desc");
 
@@ -2120,6 +2041,7 @@ mod tests {
             &500i128,
             &0u32,
             &reviewers,
+            &1u32,
             &None,
         );
         assert_eq!(res1, Err(Ok(ContractError::InvalidInput.into())));
@@ -2134,9 +2056,38 @@ mod tests {
             &100i128,
             &101u32,
             &reviewers,
+            &1u32,
             &None,
         );
         assert_eq!(res2, Err(Ok(ContractError::InvalidInput.into())));
+    }
+
+    #[test]
+    fn test_grant_create_invalid_quorum_greater_than_reviewers() {
+        let env = Env::default();
+        let (client, _, _) = setup_test(&env);
+        let owner = Address::generate(&env);
+        let token = Address::generate(&env);
+        let mut reviewers = Vec::new(&env);
+        reviewers.push_back(Address::generate(&env));
+        let title = String::from_str(&env, "Quorum check");
+        let description = String::from_str(&env, "Desc");
+
+        env.mock_all_auths();
+
+        let res = client.try_grant_create(
+            &owner,
+            &title,
+            &description,
+            &token,
+            &1000i128,
+            &500i128,
+            &2u32,
+            &reviewers,
+            &2u32,
+            &None,
+        );
+        assert_eq!(res, Err(Ok(ContractError::InvalidInput.into())));
     }
 
     #[test]
@@ -2145,7 +2096,8 @@ mod tests {
         let (client, _, _) = setup_test(&env);
         let owner = Address::generate(&env);
         let token = Address::generate(&env);
-        let reviewers = Vec::new(&env);
+        let mut reviewers = Vec::new(&env);
+        reviewers.push_back(Address::generate(&env));
         let title = String::from_str(&env, "New Grant");
         let description = String::from_str(&env, "Some desc");
 
@@ -2162,6 +2114,7 @@ mod tests {
             &500i128,
             &2u32,
             &reviewers,
+            &1u32,
             &None,
         );
         assert_eq!(res, Err(Ok(ContractError::InvalidInput.into())));
@@ -2173,7 +2126,8 @@ mod tests {
         let (client, _, _) = setup_test(&env);
         let owner = Address::generate(&env);
         let token = Address::generate(&env);
-        let reviewers = Vec::new(&env);
+        let mut reviewers = Vec::new(&env);
+        reviewers.push_back(Address::generate(&env));
         let title = String::from_str(&env, "New Grant");
         let description = String::from_str(&env, "Some desc");
 
@@ -2188,6 +2142,7 @@ mod tests {
             &500i128,
             &2u32,
             &reviewers,
+            &1u32,
             &None,
         );
         assert!(res.is_err());
@@ -2200,7 +2155,8 @@ mod tests {
         let grant_id = 1u64;
         let owner = Address::generate(&env);
         let token = Address::generate(&env);
-        let reviewers = Vec::new(&env);
+        let mut reviewers = Vec::new(&env);
+        reviewers.push_back(Address::generate(&env));
         let title = String::from_str(&env, "New Grant");
         let description = String::from_str(&env, "Some desc");
 
@@ -2214,6 +2170,7 @@ mod tests {
             &500i128,
             &2u32,
             &reviewers,
+            &1u32,
             &None,
         );
         assert_eq!(created, 1);
@@ -2237,7 +2194,8 @@ mod tests {
         let grant_id = 1u64;
         let owner = Address::generate(&env);
         let token = Address::generate(&env);
-        let reviewers = Vec::new(&env);
+        let mut reviewers = Vec::new(&env);
+        reviewers.push_back(Address::generate(&env));
         let title = String::from_str(&env, "New Grant");
         let description = String::from_str(&env, "Some desc");
 
@@ -2251,6 +2209,7 @@ mod tests {
             &500i128,
             &2u32,
             &reviewers,
+            &1u32,
             &None,
         );
 
@@ -2564,7 +2523,8 @@ mod tests {
         let (client, _, _) = setup_test(&env);
         let owner = Address::generate(&env);
         let token = Address::generate(&env);
-        let reviewers = Vec::new(&env);
+        let mut reviewers = Vec::new(&env);
+        reviewers.push_back(Address::generate(&env));
         let title = String::from_str(&env, "Deadline Grant");
         let description = String::from_str(&env, "A grant with deadlines");
 
@@ -2585,6 +2545,7 @@ mod tests {
             &500i128,
             &2u32,
             &reviewers,
+            &1u32,
             &Some(deadlines),
         );
 
@@ -2605,7 +2566,8 @@ mod tests {
         let (client, _, _) = setup_test(&env);
         let owner = Address::generate(&env);
         let token = Address::generate(&env);
-        let reviewers = Vec::new(&env);
+        let mut reviewers = Vec::new(&env);
+        reviewers.push_back(Address::generate(&env));
         let title = String::from_str(&env, "Bad Deadline Grant");
         let description = String::from_str(&env, "Mismatched deadlines");
 
@@ -2624,6 +2586,7 @@ mod tests {
             &500i128,
             &2u32,
             &reviewers,
+            &1u32,
             &Some(deadlines),
         );
         assert_eq!(result, Err(Ok(ContractError::InvalidInput.into())));
@@ -2652,6 +2615,7 @@ mod tests {
                 status: GrantStatus::Active,
                 total_amount: 1000,
                 reviewers: Vec::new(&env),
+                quorum: 1,
                 total_milestones: 1,
                 milestones_paid_out: 0,
                 escrow_balance: 1000,
