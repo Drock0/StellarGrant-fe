@@ -1,6 +1,7 @@
 #![no_std]
 #![allow(clippy::too_many_arguments)]
 mod events;
+/// Token-transfer reentrancy guard (lock/unlock on transient storage). See `reentrancy` module.
 mod reentrancy;
 mod storage;
 mod types;
@@ -846,24 +847,26 @@ impl StellarGrantsContract {
     ) -> Result<(), ContractError> {
         reviewer.require_auth();
 
-        let grant = Storage::get_grant(&env, grant_id).ok_or(ContractError::GrantNotFound)?;
-        if grant.status != GrantStatus::Active {
-            return Err(ContractError::InvalidState);
-        }
+        reentrancy::with_non_reentrant(&env, || {
+            let grant = Storage::get_grant(&env, grant_id).ok_or(ContractError::GrantNotFound)?;
+            if grant.status != GrantStatus::Active {
+                return Err(ContractError::InvalidState);
+            }
 
-        let min_stake = Storage::get_min_reviewer_stake(&env);
-        if amount < min_stake {
-            return Err(ContractError::InsufficientStake);
-        }
+            let min_stake = Storage::get_min_reviewer_stake(&env);
+            if amount < min_stake {
+                return Err(ContractError::InsufficientStake);
+            }
 
-        let contract_addr = env.current_contract_address();
-        let client = token::Client::new(&env, &grant.token);
-        client.transfer(&reviewer, &contract_addr, &amount);
+            let contract_addr = env.current_contract_address();
+            let client = token::Client::new(&env, &grant.token);
+            client.transfer(&reviewer, &contract_addr, &amount);
 
-        let current = Storage::get_reviewer_stake(&env, grant_id, &reviewer);
-        Storage::set_reviewer_stake(&env, grant_id, &reviewer, current + amount);
+            let current = Storage::get_reviewer_stake(&env, grant_id, &reviewer);
+            Storage::set_reviewer_stake(&env, grant_id, &reviewer, current + amount);
 
-        Ok(())
+            Ok(())
+        })
     }
 
     /// Admin slashes a malicious reviewer's stake, sending it to treasury.
@@ -875,41 +878,45 @@ impl StellarGrantsContract {
     ) -> Result<(), ContractError> {
         admin.require_auth();
 
-        let grant = Storage::get_grant(&env, grant_id).ok_or(ContractError::GrantNotFound)?;
-        let stake = Storage::get_reviewer_stake(&env, grant_id, &reviewer);
-        if stake <= 0 {
-            return Err(ContractError::StakeNotFound);
-        }
+        reentrancy::with_non_reentrant(&env, || {
+            let grant = Storage::get_grant(&env, grant_id).ok_or(ContractError::GrantNotFound)?;
+            let stake = Storage::get_reviewer_stake(&env, grant_id, &reviewer);
+            if stake <= 0 {
+                return Err(ContractError::StakeNotFound);
+            }
 
-        let treasury = Storage::get_treasury(&env).ok_or(ContractError::InvalidInput)?;
-        let client = token::Client::new(&env, &grant.token);
-        client.transfer(&env.current_contract_address(), &treasury, &stake);
+            let treasury = Storage::get_treasury(&env).ok_or(ContractError::InvalidInput)?;
+            let client = token::Client::new(&env, &grant.token);
+            client.transfer(&env.current_contract_address(), &treasury, &stake);
 
-        Storage::set_reviewer_stake(&env, grant_id, &reviewer, 0);
+            Storage::set_reviewer_stake(&env, grant_id, &reviewer, 0);
 
-        Ok(())
+            Ok(())
+        })
     }
 
     /// Reviewer unstakes tokens after a grant lifecycle completes.
     pub fn unstake(env: Env, reviewer: Address, grant_id: u64) -> Result<(), ContractError> {
         reviewer.require_auth();
 
-        let grant = Storage::get_grant(&env, grant_id).ok_or(ContractError::GrantNotFound)?;
-        if grant.status == GrantStatus::Active {
-            return Err(ContractError::InvalidState);
-        }
+        reentrancy::with_non_reentrant(&env, || {
+            let grant = Storage::get_grant(&env, grant_id).ok_or(ContractError::GrantNotFound)?;
+            if grant.status == GrantStatus::Active {
+                return Err(ContractError::InvalidState);
+            }
 
-        let stake = Storage::get_reviewer_stake(&env, grant_id, &reviewer);
-        if stake <= 0 {
-            return Err(ContractError::StakeNotFound);
-        }
+            let stake = Storage::get_reviewer_stake(&env, grant_id, &reviewer);
+            if stake <= 0 {
+                return Err(ContractError::StakeNotFound);
+            }
 
-        let client = token::Client::new(&env, &grant.token);
-        client.transfer(&env.current_contract_address(), &reviewer, &stake);
+            let client = token::Client::new(&env, &grant.token);
+            client.transfer(&env.current_contract_address(), &reviewer, &stake);
 
-        Storage::set_reviewer_stake(&env, grant_id, &reviewer, 0);
+            Storage::set_reviewer_stake(&env, grant_id, &reviewer, 0);
 
-        Ok(())
+            Ok(())
+        })
     }
 
     // ── KYC Integration (#43) ───────────────────────────────────────
@@ -940,63 +947,71 @@ impl StellarGrantsContract {
     ) -> Result<(), ContractError> {
         funder.require_auth();
 
-        let batch_len = grants.len();
-        if batch_len == 0 {
-            return Err(ContractError::BatchEmpty);
-        }
-        if batch_len > 20 {
-            return Err(ContractError::BatchTooLarge);
-        }
-
-        for item in grants.iter() {
-            let (grant_id, amount) = item;
-            if amount <= 0 {
-                return Err(ContractError::InvalidInput);
+        reentrancy::with_non_reentrant(&env, || {
+            let batch_len = grants.len();
+            if batch_len == 0 {
+                return Err(ContractError::BatchEmpty);
+            }
+            if batch_len > 20 {
+                return Err(ContractError::BatchTooLarge);
             }
 
-            let mut grant =
-                Storage::get_grant(&env, grant_id).ok_or(ContractError::GrantNotFound)?;
-
-            if grant.status != GrantStatus::Active {
-                return Err(ContractError::InvalidState);
-            }
-
-            let contract_addr = env.current_contract_address();
-            let client = token::Client::new(&env, &grant.token);
-            client.transfer(&funder, &contract_addr, &amount);
-
-            grant.escrow_balance = grant
-                .escrow_balance
-                .checked_add(amount)
-                .ok_or(ContractError::InvalidInput)?;
-
-            let mut found = false;
-            let mut new_funders = soroban_sdk::Vec::new(&env);
-            for f in grant.funders.iter() {
-                if f.funder == funder {
-                    new_funders.push_back(GrantFund {
-                        funder: f.funder,
-                        amount: f.amount + amount,
-                    });
-                    found = true;
-                } else {
-                    new_funders.push_back(f);
+            for item in grants.iter() {
+                let (grant_id, amount) = item;
+                if amount <= 0 {
+                    return Err(ContractError::InvalidInput);
                 }
-            }
-            if !found {
-                new_funders.push_back(GrantFund {
-                    funder: funder.clone(),
+
+                let mut grant =
+                    Storage::get_grant(&env, grant_id).ok_or(ContractError::GrantNotFound)?;
+
+                if grant.status != GrantStatus::Active {
+                    return Err(ContractError::InvalidState);
+                }
+
+                let contract_addr = env.current_contract_address();
+                let client = token::Client::new(&env, &grant.token);
+                client.transfer(&funder, &contract_addr, &amount);
+
+                grant.escrow_balance = grant
+                    .escrow_balance
+                    .checked_add(amount)
+                    .ok_or(ContractError::InvalidInput)?;
+
+                let mut found = false;
+                let mut new_funders = soroban_sdk::Vec::new(&env);
+                for f in grant.funders.iter() {
+                    if f.funder == funder {
+                        new_funders.push_back(GrantFund {
+                            funder: f.funder,
+                            amount: f.amount + amount,
+                        });
+                        found = true;
+                    } else {
+                        new_funders.push_back(f);
+                    }
+                }
+                if !found {
+                    new_funders.push_back(GrantFund {
+                        funder: funder.clone(),
+                        amount,
+                    });
+                }
+                grant.funders = new_funders;
+
+                Storage::set_grant(&env, grant_id, &grant);
+
+                Events::emit_grant_funded(
+                    &env,
+                    grant_id,
+                    funder.clone(),
                     amount,
-                });
+                    grant.escrow_balance,
+                );
             }
-            grant.funders = new_funders;
 
-            Storage::set_grant(&env, grant_id, &grant);
-
-            Events::emit_grant_funded(&env, grant_id, funder.clone(), amount, grant.escrow_balance);
-        }
-
-        Ok(())
+            Ok(())
+        })
     }
 }
 
