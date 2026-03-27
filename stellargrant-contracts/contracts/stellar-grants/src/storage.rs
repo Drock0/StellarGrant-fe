@@ -20,7 +20,22 @@ pub enum DataKey {
 
 pub struct Storage;
 
+// Soroban TTL values are expressed in ledgers. At roughly 5 seconds per ledger,
+// this refreshes entries when they have less than about 6 days left and extends
+// them out to roughly 58 days, which keeps long-lived grants active without
+// needing constant writes.
+const PERSISTENT_TTL_THRESHOLD: u32 = 100_000;
+const PERSISTENT_TTL_EXTEND_TO: u32 = 1_000_000;
+
 impl Storage {
+    fn bump_persistent_ttl(env: &Env, key: &DataKey) {
+        env.storage().persistent().extend_ttl(
+            key,
+            PERSISTENT_TTL_THRESHOLD,
+            PERSISTENT_TTL_EXTEND_TO,
+        );
+    }
+
     // --- Staking helpers ---
 
     pub fn get_reviewer_stake(env: &Env, grant_id: u64, reviewer: &soroban_sdk::Address) -> i128 {
@@ -57,13 +72,18 @@ impl Storage {
     }
 
     pub fn get_grant(env: &Env, grant_id: u64) -> Option<Grant> {
-        env.storage().persistent().get(&DataKey::Grant(grant_id))
+        let key = DataKey::Grant(grant_id);
+        let grant = env.storage().persistent().get(&key);
+        if grant.is_some() {
+            Self::bump_persistent_ttl(env, &key);
+        }
+        grant
     }
 
     pub fn set_grant(env: &Env, grant_id: u64, grant: &Grant) {
-        env.storage()
-            .persistent()
-            .set(&DataKey::Grant(grant_id), grant);
+        let key = DataKey::Grant(grant_id);
+        env.storage().persistent().set(&key, grant);
+        Self::bump_persistent_ttl(env, &key);
     }
 
     pub fn has_grant(env: &Env, grant_id: u64) -> bool {
@@ -71,27 +91,26 @@ impl Storage {
     }
 
     pub fn get_milestone(env: &Env, grant_id: u64, milestone_idx: u32) -> Option<Milestone> {
-        env.storage()
-            .persistent()
-            .get(&DataKey::Milestone(grant_id, milestone_idx))
+        let key = DataKey::Milestone(grant_id, milestone_idx);
+        let milestone = env.storage().persistent().get(&key);
+        if milestone.is_some() {
+            Self::bump_persistent_ttl(env, &key);
+        }
+        milestone
     }
 
     pub fn set_milestone(env: &Env, grant_id: u64, milestone_idx: u32, milestone: &Milestone) {
-        env.storage()
-            .persistent()
-            .set(&DataKey::Milestone(grant_id, milestone_idx), milestone);
+        let key = DataKey::Milestone(grant_id, milestone_idx);
+        env.storage().persistent().set(&key, milestone);
+        Self::bump_persistent_ttl(env, &key);
     }
 
     pub fn increment_grant_counter(env: &Env) -> u64 {
-        let mut counter: u64 = env
-            .storage()
-            .persistent()
-            .get(&DataKey::GrantCounter)
-            .unwrap_or(0);
+        let key = DataKey::GrantCounter;
+        let mut counter: u64 = env.storage().persistent().get(&key).unwrap_or(0);
         counter += 1;
-        env.storage()
-            .persistent()
-            .set(&DataKey::GrantCounter, &counter);
+        env.storage().persistent().set(&key, &counter);
+        Self::bump_persistent_ttl(env, &key);
         counter
     }
 
@@ -99,9 +118,12 @@ impl Storage {
         env: &Env,
         contributor: soroban_sdk::Address,
     ) -> Option<crate::types::ContributorProfile> {
-        env.storage()
-            .persistent()
-            .get(&DataKey::Contributor(contributor))
+        let key = DataKey::Contributor(contributor);
+        let profile = env.storage().persistent().get(&key);
+        if profile.is_some() {
+            Self::bump_persistent_ttl(env, &key);
+        }
+        profile
     }
 
     pub fn set_contributor(
@@ -109,9 +131,9 @@ impl Storage {
         contributor: soroban_sdk::Address,
         profile: &crate::types::ContributorProfile,
     ) {
-        env.storage()
-            .persistent()
-            .set(&DataKey::Contributor(contributor), profile);
+        let key = DataKey::Contributor(contributor);
+        env.storage().persistent().set(&key, profile);
+        Self::bump_persistent_ttl(env, &key);
     }
 
     pub fn get_reviewer_reputation(env: &Env, reviewer: soroban_sdk::Address) -> u32 {

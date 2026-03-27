@@ -1,10 +1,15 @@
 #[cfg(test)]
 mod tests {
-    use crate::storage::Storage;
+    use crate::storage::{DataKey, Storage};
     use crate::types::{ContractError, Grant, GrantFund, GrantStatus, Milestone, MilestoneState};
     use crate::StellarGrantsContract;
     use crate::StellarGrantsContractClient;
-    use soroban_sdk::{testutils::Address as _, token, Address, Env, Map, String, Vec};
+    use soroban_sdk::{
+        testutils::{storage::Persistent as _, Address as _, Ledger as _},
+        token, Address, Env, Map, String, Vec,
+    };
+
+    const EXTENDED_PERSISTENT_TTL: u32 = 1_000_000;
 
     fn setup_test(
         env: &Env,
@@ -71,6 +76,158 @@ mod tests {
                 submission_timestamp: env.ledger().timestamp(),
             };
             Storage::set_milestone(env, grant_id, milestone_idx, &milestone);
+        });
+    }
+
+    fn create_contributor_profile(
+        env: &Env,
+        contributor: Address,
+    ) -> crate::types::ContributorProfile {
+        let mut skills = Vec::new(env);
+        skills.push_back(String::from_str(env, "Rust"));
+
+        crate::types::ContributorProfile {
+            contributor,
+            name: String::from_str(env, "Alice"),
+            bio: String::from_str(env, "Builds Soroban contracts"),
+            skills,
+            github_url: String::from_str(env, "https://github.com/alice"),
+            registration_timestamp: env.ledger().timestamp(),
+            grants_count: 1,
+            total_earned: 100,
+        }
+    }
+
+    #[test]
+    fn test_set_grant_extends_persistent_ttl() {
+        let env = Env::default();
+        let (_, _, contract_id) = setup_test(&env);
+        let grant_id = 77u64;
+        let owner = Address::generate(&env);
+        let token = Address::generate(&env);
+
+        create_grant(&env, &contract_id, grant_id, owner, token, Vec::new(&env));
+
+        env.as_contract(&contract_id, || {
+            assert_eq!(
+                env.storage()
+                    .persistent()
+                    .get_ttl(&DataKey::Grant(grant_id)),
+                EXTENDED_PERSISTENT_TTL
+            );
+        });
+    }
+
+    #[test]
+    fn test_get_grant_refreshes_persistent_ttl() {
+        let env = Env::default();
+        let (_, _, contract_id) = setup_test(&env);
+        let grant_id = 78u64;
+        let owner = Address::generate(&env);
+        let token = Address::generate(&env);
+
+        create_grant(&env, &contract_id, grant_id, owner, token, Vec::new(&env));
+        env.ledger().set_sequence_number(920_000);
+
+        env.as_contract(&contract_id, || {
+            let ttl_before = env
+                .storage()
+                .persistent()
+                .get_ttl(&DataKey::Grant(grant_id));
+            assert!(ttl_before < EXTENDED_PERSISTENT_TTL);
+
+            let grant = Storage::get_grant(&env, grant_id).unwrap();
+            assert_eq!(grant.id, grant_id);
+
+            assert_eq!(
+                env.storage()
+                    .persistent()
+                    .get_ttl(&DataKey::Grant(grant_id)),
+                EXTENDED_PERSISTENT_TTL
+            );
+        });
+    }
+
+    #[test]
+    fn test_milestone_storage_refreshes_persistent_ttl() {
+        let env = Env::default();
+        let (_, _, contract_id) = setup_test(&env);
+        let grant_id = 79u64;
+        let milestone_idx = 0u32;
+        let owner = Address::generate(&env);
+        let token = Address::generate(&env);
+
+        create_grant(&env, &contract_id, grant_id, owner, token, Vec::new(&env));
+        create_milestone(
+            &env,
+            &contract_id,
+            grant_id,
+            milestone_idx,
+            MilestoneState::Submitted,
+        );
+        env.ledger().set_sequence_number(920_000);
+
+        env.as_contract(&contract_id, || {
+            let ttl_before = env
+                .storage()
+                .persistent()
+                .get_ttl(&DataKey::Milestone(grant_id, milestone_idx));
+            assert!(ttl_before < EXTENDED_PERSISTENT_TTL);
+
+            let milestone = Storage::get_milestone(&env, grant_id, milestone_idx).unwrap();
+            assert_eq!(milestone.idx, milestone_idx);
+
+            assert_eq!(
+                env.storage()
+                    .persistent()
+                    .get_ttl(&DataKey::Milestone(grant_id, milestone_idx)),
+                EXTENDED_PERSISTENT_TTL
+            );
+        });
+    }
+
+    #[test]
+    fn test_contributor_and_grant_counter_extend_persistent_ttl() {
+        let env = Env::default();
+        let (_, _, contract_id) = setup_test(&env);
+        let contributor = Address::generate(&env);
+
+        env.as_contract(&contract_id, || {
+            let profile = create_contributor_profile(&env, contributor.clone());
+            Storage::set_contributor(&env, contributor.clone(), &profile);
+            let grant_id = Storage::increment_grant_counter(&env);
+
+            assert_eq!(grant_id, 1);
+            assert_eq!(
+                env.storage()
+                    .persistent()
+                    .get_ttl(&DataKey::Contributor(contributor.clone())),
+                EXTENDED_PERSISTENT_TTL
+            );
+            assert_eq!(
+                env.storage().persistent().get_ttl(&DataKey::GrantCounter),
+                EXTENDED_PERSISTENT_TTL
+            );
+        });
+
+        env.ledger().set_sequence_number(920_000);
+
+        env.as_contract(&contract_id, || {
+            let ttl_before = env
+                .storage()
+                .persistent()
+                .get_ttl(&DataKey::Contributor(contributor.clone()));
+            assert!(ttl_before < EXTENDED_PERSISTENT_TTL);
+
+            let profile = Storage::get_contributor(&env, contributor.clone()).unwrap();
+            assert_eq!(profile.name, String::from_str(&env, "Alice"));
+
+            assert_eq!(
+                env.storage()
+                    .persistent()
+                    .get_ttl(&DataKey::Contributor(contributor)),
+                EXTENDED_PERSISTENT_TTL
+            );
         });
     }
 
