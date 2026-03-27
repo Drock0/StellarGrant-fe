@@ -9,7 +9,7 @@ pub use events::Events;
 pub use storage::Storage;
 pub use types::{
     ContractError, EscrowLifecycleState, EscrowMode, EscrowState, Grant, GrantFund, GrantStatus,
-    Milestone, MilestoneState,
+    Milestone, MilestoneState, MilestoneSubmission,
 };
 
 use soroban_sdk::{contract, contractimpl, token, Address, Env, String, Vec};
@@ -648,52 +648,68 @@ impl StellarGrantsContract {
     ) -> Result<(), ContractError> {
         recipient.require_auth();
 
-        // 1. Grant must exist
         let grant = Storage::get_grant(&env, grant_id).ok_or(ContractError::GrantNotFound)?;
 
-        // 2. Grant must be Active
         if grant.status != GrantStatus::Active {
             return Err(ContractError::InvalidState);
         }
 
-        // 3. Milestone index must be valid
-        if milestone_idx >= grant.total_milestones {
-            return Err(ContractError::InvalidInput);
-        }
-
-        // 4. Caller must be the grant recipient (owner)
         if grant.owner != recipient {
             return Err(ContractError::Unauthorized);
         }
 
-        // 5. Milestone must not already be submitted or approved
-        if let Some(existing) = Storage::get_milestone(&env, grant_id, milestone_idx) {
-            if existing.state == MilestoneState::Submitted
-                || existing.state == MilestoneState::Approved
-            {
-                return Err(ContractError::MilestoneAlreadySubmitted);
-            }
+        apply_milestone_submission(
+            &env,
+            grant_id,
+            &grant,
+            milestone_idx,
+            description,
+            proof_url,
+        )
+    }
+
+    /// Submits multiple milestones in one transaction.
+    ///
+    /// # Errors
+    /// * [`ContractError::BatchEmpty`] – if `submissions` is empty.
+    /// * [`ContractError::BatchTooLarge`] – if more than 20 submissions.
+    /// * Same errors as [`Self::milestone_submit`] for grant and per-milestone validation.
+    pub fn milestone_submit_batch(
+        env: Env,
+        grant_id: u64,
+        recipient: Address,
+        submissions: Vec<MilestoneSubmission>,
+    ) -> Result<(), ContractError> {
+        recipient.require_auth();
+
+        let batch_len = submissions.len();
+        if batch_len == 0 {
+            return Err(ContractError::BatchEmpty);
+        }
+        if batch_len > 20 {
+            return Err(ContractError::BatchTooLarge);
         }
 
-        // Build and store the milestone in Submitted state
-        let milestone = Milestone {
-            idx: milestone_idx,
-            description: description.clone(),
-            amount: 0,
-            state: MilestoneState::Submitted,
-            votes: soroban_sdk::Map::new(&env),
-            approvals: 0,
-            rejections: 0,
-            reasons: soroban_sdk::Map::new(&env),
-            status_updated_at: 0,
-            proof_url: Some(proof_url),
-            submission_timestamp: env.ledger().timestamp(),
-        };
+        let grant = Storage::get_grant(&env, grant_id).ok_or(ContractError::GrantNotFound)?;
 
-        Storage::set_milestone(&env, grant_id, milestone_idx, &milestone);
+        if grant.status != GrantStatus::Active {
+            return Err(ContractError::InvalidState);
+        }
 
-        // Emit submission event
-        Events::emit_milestone_submitted(&env, grant_id, milestone_idx, description);
+        if grant.owner != recipient {
+            return Err(ContractError::Unauthorized);
+        }
+
+        for sub in submissions.iter() {
+            apply_milestone_submission(
+                &env,
+                grant_id,
+                &grant,
+                sub.idx,
+                sub.description.clone(),
+                sub.proof.clone(),
+            )?;
+        }
 
         Ok(())
     }
@@ -982,6 +998,45 @@ impl StellarGrantsContract {
 
         Ok(())
     }
+}
+
+fn apply_milestone_submission(
+    env: &Env,
+    grant_id: u64,
+    grant: &Grant,
+    milestone_idx: u32,
+    description: String,
+    proof_url: String,
+) -> Result<(), ContractError> {
+    if milestone_idx >= grant.total_milestones {
+        return Err(ContractError::InvalidInput);
+    }
+
+    if let Some(existing) = Storage::get_milestone(env, grant_id, milestone_idx) {
+        if existing.state == MilestoneState::Submitted || existing.state == MilestoneState::Approved
+        {
+            return Err(ContractError::MilestoneAlreadySubmitted);
+        }
+    }
+
+    let milestone = Milestone {
+        idx: milestone_idx,
+        description: description.clone(),
+        amount: 0,
+        state: MilestoneState::Submitted,
+        votes: soroban_sdk::Map::new(env),
+        approvals: 0,
+        rejections: 0,
+        reasons: soroban_sdk::Map::new(env),
+        status_updated_at: 0,
+        proof_url: Some(proof_url),
+        submission_timestamp: env.ledger().timestamp(),
+    };
+
+    Storage::set_milestone(env, grant_id, milestone_idx, &milestone);
+    Events::emit_milestone_submitted(env, grant_id, milestone_idx, description);
+
+    Ok(())
 }
 
 #[cfg(test)]

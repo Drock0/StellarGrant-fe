@@ -1,7 +1,10 @@
 #[cfg(test)]
 mod tests {
     use crate::storage::Storage;
-    use crate::types::{ContractError, Grant, GrantFund, GrantStatus, Milestone, MilestoneState};
+    use crate::types::{
+        ContractError, Grant, GrantFund, GrantStatus, Milestone, MilestoneState,
+        MilestoneSubmission,
+    };
     use crate::StellarGrantsContract;
     use crate::StellarGrantsContractClient;
     use soroban_sdk::{
@@ -1075,6 +1078,80 @@ mod tests {
             );
             assert_eq!(milestone.idx, milestone_idx);
         });
+    }
+
+    #[test]
+    fn test_milestone_submit_batch_three_milestones() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let (client, _, contract_id) = setup_test(&env);
+        let owner = Address::generate(&env);
+        let token = Address::generate(&env);
+        let grant_id = 1u64;
+
+        env.as_contract(&contract_id, || {
+            let grant = Grant {
+                id: grant_id,
+                title: String::from_str(&env, "Test"),
+                description: String::from_str(&env, "Desc"),
+                milestone_amount: 333,
+                owner: owner.clone(),
+                token,
+                status: GrantStatus::Active,
+                total_amount: 1000,
+                reviewers: Vec::new(&env),
+                total_milestones: 3,
+                milestones_paid_out: 0,
+                escrow_balance: 1000,
+                funders: Vec::new(&env),
+                reason: None,
+                timestamp: env.ledger().timestamp(),
+            };
+            Storage::set_grant(&env, grant_id, &grant);
+        });
+
+        let mut submissions = Vec::new(&env);
+        submissions.push_back(MilestoneSubmission {
+            idx: 0,
+            description: String::from_str(&env, "First milestone desc"),
+            proof: String::from_str(&env, "https://proof.example/a"),
+        });
+        submissions.push_back(MilestoneSubmission {
+            idx: 1,
+            description: String::from_str(&env, "Second milestone desc"),
+            proof: String::from_str(&env, "https://proof.example/b"),
+        });
+        submissions.push_back(MilestoneSubmission {
+            idx: 2,
+            description: String::from_str(&env, "Third milestone desc"),
+            proof: String::from_str(&env, "https://proof.example/c"),
+        });
+
+        client.milestone_submit_batch(&grant_id, &owner, &submissions);
+
+        for idx in 0u32..3u32 {
+            env.as_contract(&contract_id, || {
+                let milestone = Storage::get_milestone(&env, grant_id, idx).unwrap();
+                assert_eq!(milestone.state, MilestoneState::Submitted);
+                assert_eq!(milestone.idx, idx);
+                let expected_desc = match idx {
+                    0 => "First milestone desc",
+                    1 => "Second milestone desc",
+                    _ => "Third milestone desc",
+                };
+                let expected_proof = match idx {
+                    0 => "https://proof.example/a",
+                    1 => "https://proof.example/b",
+                    _ => "https://proof.example/c",
+                };
+                assert_eq!(milestone.description, String::from_str(&env, expected_desc));
+                assert_eq!(
+                    milestone.proof_url,
+                    Some(String::from_str(&env, expected_proof))
+                );
+            });
+        }
     }
 
     #[test]

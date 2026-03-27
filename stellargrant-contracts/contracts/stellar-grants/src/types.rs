@@ -84,6 +84,14 @@ pub struct Milestone {
 }
 
 #[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MilestoneSubmission {
+    pub idx: u32,
+    pub description: String,
+    pub proof: String,
+}
+
+#[contracttype]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 pub enum GrantStatus {
