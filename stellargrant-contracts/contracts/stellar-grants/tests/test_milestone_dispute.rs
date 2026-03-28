@@ -33,10 +33,11 @@ fn test_dispute_and_resolve_flow() {
         &reviewers,
         &1,
         &None,
+        &0i128,
     );
     let funder = Address::generate(&env);
     token_admin.mint(&funder, &1000);
-    client.grant_fund(&grant_id, &funder, &1000);
+    client.grant_fund(&grant_id, &funder, &1000, &None);
     client.milestone_submit(
         &grant_id,
         &0,
@@ -85,10 +86,11 @@ fn test_vote_blocked_during_dispute() {
         &reviewers,
         &1,
         &None,
+        &0i128,
     );
     let funder = Address::generate(&env);
     token_admin.mint(&funder, &1000);
-    client.grant_fund(&grant_id, &funder, &1000);
+    client.grant_fund(&grant_id, &funder, &1000, &None);
     client.milestone_submit(
         &grant_id,
         &0,
@@ -131,10 +133,11 @@ fn test_only_council_can_resolve_dispute() {
         &reviewers,
         &1,
         &None,
+        &0i128,
     );
     let funder = Address::generate(&env);
     token_admin.mint(&funder, &1000);
-    client.grant_fund(&grant_id, &funder, &1000);
+    client.grant_fund(&grant_id, &funder, &1000, &None);
     client.milestone_submit(
         &grant_id,
         &0,
