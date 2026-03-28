@@ -574,6 +574,53 @@ impl Events {
         };
         event.publish(env);
     }
+
+    pub fn emit_payee_receipt(env: &Env, grant_id: u64, payee: Address, amount: i128) {
+        let event = PayeeReceipt {
+            event_version: EVENT_VERSION,
+            grant_id,
+            payee,
+            amount,
+            timestamp: env.ledger().timestamp(),
+        };
+        event.publish(env);
+    }
+
+    pub fn emit_payer_receipt(
+        env: &Env,
+        grant_id: u64,
+        payer: Address,
+        amount: i128,
+        memo: Option<String>,
+    ) {
+        let event = PayerReceipt {
+            event_version: EVENT_VERSION,
+            grant_id,
+            payer,
+            amount,
+            memo,
+            timestamp: env.ledger().timestamp(),
+        };
+        event.publish(env);
+    }
+
+    pub fn emit_heartbeat_updated(env: &Env, grant_id: u64, timestamp: u64) {
+        let event = HeartbeatUpdated {
+            event_version: EVENT_VERSION,
+            grant_id,
+            timestamp,
+        };
+        event.publish(env);
+    }
+
+    pub fn emit_grant_gone_inactive(env: &Env, grant_id: u64, timestamp: u64) {
+        let event = GrantGoneInactive {
+            event_version: EVENT_VERSION,
+            grant_id,
+            timestamp,
+        };
+        event.publish(env);
+    }
 }
 
 #[contractevent]
@@ -653,5 +700,42 @@ pub struct GrantResumed {
     pub event_version: u32,
     pub grant_id: u64,
     pub actor: Address,
+    pub timestamp: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PayeeReceipt {
+    pub event_version: u32,
+    pub grant_id: u64,
+    pub payee: Address,
+    pub amount: i128,
+    pub timestamp: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PayerReceipt {
+    pub event_version: u32,
+    pub grant_id: u64,
+    pub payer: Address,
+    pub amount: i128,
+    pub memo: Option<String>,
+    pub timestamp: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct HeartbeatUpdated {
+    pub event_version: u32,
+    pub grant_id: u64,
+    pub timestamp: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GrantGoneInactive {
+    pub event_version: u32,
+    pub grant_id: u64,
     pub timestamp: u64,
 }

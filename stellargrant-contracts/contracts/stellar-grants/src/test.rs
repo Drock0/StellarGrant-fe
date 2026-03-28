@@ -3963,6 +3963,7 @@ mod tests {
                 reason: None,
                 cancellation_requested_at: None,
                 timestamp: env.ledger().timestamp(),
+                last_heartbeat: env.ledger().timestamp(),
             };
             Storage::set_grant(&env, grant_id, &grant);
         });
@@ -4005,11 +4006,12 @@ mod tests {
                 reason: None,
                 cancellation_requested_at: None,
                 timestamp: env.ledger().timestamp(),
+                last_heartbeat: env.ledger().timestamp(),
             };
             Storage::set_grant(&env, grant_id, &grant);
         });
 
-        let result = client.try_grant_fund(&grant_id, &funder, &500);
+        let result = client.try_grant_fund(&grant_id, &funder, &500, &None);
         assert_eq!(result, Err(Ok(ContractError::InvalidState.into())));
     }
 
@@ -4041,6 +4043,7 @@ mod tests {
                 reason: None,
                 cancellation_requested_at: None,
                 timestamp: env.ledger().timestamp(),
+                last_heartbeat: env.ledger().timestamp(),
             };
             Storage::set_grant(&env, grant_id, &grant);
         });
@@ -4088,6 +4091,7 @@ mod tests {
                 reason: None,
                 cancellation_requested_at: None,
                 timestamp: env.ledger().timestamp(),
+                last_heartbeat: env.ledger().timestamp(),
             };
             Storage::set_grant(&env, grant_id, &grant);
         });

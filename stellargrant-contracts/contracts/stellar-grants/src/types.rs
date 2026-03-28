@@ -120,6 +120,8 @@ pub enum GrantStatus {
     CancellationPending = 4,
     /// Grant is temporarily paused; no funding, submissions, or payouts allowed.
     Paused = 5,
+    /// Grant became inactive due to missed heartbeats; can be restored via grant_ping.
+    Inactive = 6,
 }
 
 #[contracttype]

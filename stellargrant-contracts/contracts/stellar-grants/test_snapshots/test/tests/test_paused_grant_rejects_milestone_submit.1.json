@@ -80,6 +80,14 @@
                   },
                   {
                     "key": {
+                      "symbol": "last_heartbeat"
+                    },
+                    "val": {
+                      "u64": "0"
+                    }
+                  },
+                  {
+                    "key": {
                       "symbol": "milestone_amount"
                     },
                     "val": {
