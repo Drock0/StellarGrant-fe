@@ -35,6 +35,7 @@ fn test_dispute_and_resolve_flow() {
         &None,
         &0i128,
     );
+    client.grant_accept(&grant_id, &owner);
     let funder = Address::generate(&env);
     token_admin.mint(&funder, &1000);
     client.grant_fund(&grant_id, &funder, &1000, &None);
@@ -87,6 +88,7 @@ fn test_vote_blocked_during_dispute() {
         &None,
         &0i128,
     );
+    client.grant_accept(&grant_id, &owner);
     let funder = Address::generate(&env);
     token_admin.mint(&funder, &1000);
     client.grant_fund(&grant_id, &funder, &1000, &None);
@@ -138,6 +140,7 @@ fn test_only_council_can_resolve_dispute() {
         &None,
         &0i128,
     );
+    client.grant_accept(&grant_id, &owner);
     let funder = Address::generate(&env);
     token_admin.mint(&funder, &1000);
     client.grant_fund(&grant_id, &funder, &1000, &None);

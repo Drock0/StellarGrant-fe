@@ -340,11 +340,9 @@ impl StellarGrantsContract {
 
         let grant_id = Storage::increment_grant_counter(&env);
 
-        let initial_status = if min_funding > 0 {
-            GrantStatus::PendingFunding
-        } else {
-            GrantStatus::Active
-        };
+        // All grants start in PendingAcceptance; the recipient (owner) must explicitly
+        // call grant_accept before any funding or milestone activity can begin.
+        let initial_status = GrantStatus::PendingAcceptance;
 
         let grant = Grant {
             id: grant_id,
@@ -413,6 +411,56 @@ impl StellarGrantsContract {
         Events::emit_grant_created(&env, grant_id, owner.clone(), title.clone(), total_amount);
 
         Ok(grant_id)
+    }
+
+    /// Accept a grant that is in [`GrantStatus::PendingAcceptance`].
+    ///
+    /// Only the grant owner (recipient) may call this. Once accepted the grant
+    /// transitions to [`GrantStatus::PendingFunding`] when a `min_funding`
+    /// threshold is set, or directly to [`GrantStatus::Active`] otherwise.
+    ///
+    /// # Arguments
+    /// * `grant_id` - The grant to accept.
+    /// * `recipient` - Must match `grant.owner` and must authenticate.
+    ///
+    /// # Errors
+    /// * [`ContractError::GrantNotFound`] – grant does not exist.
+    /// * [`ContractError::Unauthorized`] – caller is not the grant owner.
+    /// * [`ContractError::InvalidState`] – grant is not in `PendingAcceptance`.
+    pub fn grant_accept(
+        env: Env,
+        grant_id: u64,
+        recipient: Address,
+    ) -> Result<(), ContractError> {
+        recipient.require_auth();
+
+        let mut grant = Storage::get_grant(&env, grant_id).ok_or(ContractError::GrantNotFound)?;
+
+        if grant.owner != recipient {
+            return Err(ContractError::Unauthorized);
+        }
+
+        if grant.status != GrantStatus::PendingAcceptance {
+            return Err(ContractError::InvalidState);
+        }
+
+        let new_status = if grant.min_funding > 0 {
+            GrantStatus::PendingFunding
+        } else {
+            GrantStatus::Active
+        };
+
+        grant.status = new_status;
+        Storage::set_grant(&env, grant_id, &grant);
+        Storage::index_transition(
+            &env,
+            GrantStatus::PendingAcceptance as u32,
+            new_status as u32,
+            grant_id,
+        );
+
+        Events::emit_grant_accepted(&env, grant_id, recipient);
+        Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]

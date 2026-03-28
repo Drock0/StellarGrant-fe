@@ -127,6 +127,9 @@ pub enum GrantStatus {
     Inactive = 6,
     /// Grant is waiting to reach its minimum funding threshold before becoming Active.
     PendingFunding = 7,
+    /// Grant has been created but not yet accepted by the recipient (owner).
+    /// No funding is allowed until the grant transitions out of this state.
+    PendingAcceptance = 8,
 }
 
 #[contracttype]

@@ -658,6 +658,16 @@ impl Events {
         };
         event.publish(env);
     }
+
+    pub fn emit_grant_accepted(env: &Env, grant_id: u64, recipient: Address) {
+        let event = GrantAccepted {
+            event_version: EVENT_VERSION,
+            grant_id,
+            recipient,
+            timestamp: env.ledger().timestamp(),
+        };
+        event.publish(env);
+    }
 }
 
 #[contractevent]
@@ -782,5 +792,14 @@ pub struct GrantGoneInactive {
 pub struct GrantActivated {
     pub event_version: u32,
     pub grant_id: u64,
+    pub timestamp: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct GrantAccepted {
+    pub event_version: u32,
+    pub grant_id: u64,
+    pub recipient: Address,
     pub timestamp: u64,
 }

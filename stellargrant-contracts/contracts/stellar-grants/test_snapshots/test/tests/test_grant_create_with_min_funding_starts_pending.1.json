@@ -258,7 +258,7 @@
                       "symbol": "status"
                     },
                     "val": {
-                      "u32": 7
+                      "u32": 8
                     }
                   },
                   {
@@ -373,7 +373,7 @@
                     "symbol": "GrantStatusIndex"
                   },
                   {
-                    "u32": 7
+                    "u32": 8
                   }
                 ]
               },

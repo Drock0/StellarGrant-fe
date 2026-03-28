@@ -32,6 +32,8 @@ fn test_milestone_voting_quorum_and_events() {
         &0i128,
     );
 
+    client.grant_accept(&grant_id, &owner);
+
     let _ = client.milestone_submit(
         &grant_id,
         &0,
@@ -83,6 +85,7 @@ fn test_milestone_vote_after_quorum_panics() {
         &None,
         &0i128,
     );
+    client.grant_accept(&grant_id, &owner);
     let _ = client.milestone_submit(
         &grant_id,
         &0,
@@ -129,6 +132,8 @@ fn test_milestone_double_voting_panics() {
         &None,
         &0i128,
     );
+
+    client.grant_accept(&grant_id, &owner);
 
     let _ = client.milestone_submit(
         &grant_id,

@@ -374,7 +374,7 @@
                     "symbol": "GrantStatusIndex"
                   },
                   {
-                    "u32": 1
+                    "u32": 8
                   }
                 ]
               },
