@@ -4722,7 +4722,7 @@ mod tests {
 
         let result = client.try_unpause(&attacker);
         assert_eq!(result, Err(Ok(ContractError::Unauthorized.into())));
-        assert_eq!(client.is_paused(), true); // still paused
+        assert_eq!(client.is_paused(), true);
     }
 
     #[test]
@@ -4841,8 +4841,8 @@ mod tests {
     }
 
     #[test]
-    fn test_cancel_and_complete_allowed_while_paused() {
-        // Refund/cancel logic is intentionally NOT blocked by the pause
+    fn test_cancel_allowed_while_paused() {
+        // grant_cancel is intentionally NOT blocked by the pause (funds recovery)
         let env = Env::default();
         env.mock_all_auths();
         let (client, _, contract_id) = setup_test(&env);
@@ -4854,7 +4854,6 @@ mod tests {
 
         client.initialize(&admin, &council);
 
-        // Create a grant with zero escrow so cancel doesn't need a token transfer
         env.as_contract(&contract_id, || {
             let grant = Grant {
                 id: grant_id,
@@ -4881,8 +4880,6 @@ mod tests {
         });
 
         client.pause(&admin);
-
-        // grant_cancel should still work while paused (funds recovery)
         client.grant_cancel(&grant_id, &owner, &String::from_str(&env, "emergency"));
 
         env.as_contract(&contract_id, || {
