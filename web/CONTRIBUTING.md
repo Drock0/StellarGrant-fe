@@ -66,7 +66,7 @@ Before you begin, ensure you have:
 3. **Install frontend dependencies**
 
    ```bash
-   cd stellargrant-fe
+   cd web
    pnpm install
    ```
 
@@ -92,7 +92,7 @@ Before you begin, ensure you have:
 6. **Start development server**
 
    ```bash
-   cd stellargrant-fe
+   cd web
    pnpm dev
    ```
 
@@ -107,10 +107,10 @@ Before you begin, ensure you have:
 
 Understanding the folder structure is essential for navigating the codebase and making contributions.
 
-### Frontend Structure (stellargrant-fe/)
+### Frontend Structure (web/)
 
 ```
-stellargrant-fe/
+web/
 ├── app/                          # Next.js App Router pages
 │   ├── layout.tsx                # Root layout with fonts and providers
 │   ├── page.tsx                  # Homepage / landing page

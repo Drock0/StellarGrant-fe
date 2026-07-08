@@ -48,7 +48,7 @@ git clone https://github.com/your-org/stellargrant-fe.git
 cd StellarGrant-fe
 
 # Install frontend dependencies
-cd stellargrant-fe
+cd web
 pnpm install
 
 # Copy environment variables
@@ -58,7 +58,7 @@ cp .env.example .env.local
 # (Optional) Set up the mock API server
 cd ../api
 npm install
-cd ../stellargrant-fe
+cd ../web
 
 # Start development server
 pnpm dev
@@ -95,7 +95,7 @@ cd api
 npm run dev
 
 # Terminal 2 - Frontend
-cd stellargrant-fe
+cd web
 pnpm dev
 ```
 
@@ -171,7 +171,7 @@ StellarGrant-fe/
 │   ├── tests/                   # E2E tests
 │   ├── Dockerfile
 │   └── package.json
-├── stellargrant-fe/              # Next.js frontend application
+├── web/              # Next.js frontend application
 │   ├── app/                      # Next.js App Router
 │   │   ├── layout.tsx            # Root layout (wallet provider, fonts)
 │   │   ├── page.tsx              # Homepage / grant discovery
@@ -224,7 +224,7 @@ StellarGrant-fe/
 
 ## 🛠️ Available Scripts
 
-### Frontend Scripts (stellargrant-fe/)
+### Frontend Scripts (web/)
 
 | Command | Description |
 |---------|-------------|

@@ -14,7 +14,7 @@
  * } from "@/lib/errors";
  * ```
  *
- * @module stellargrant-fe/lib/errors
+ * @module web/lib/errors
  */
 
 export { ErrorCode, ERROR_MESSAGES } from "./errorCodes";

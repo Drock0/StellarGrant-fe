@@ -12,7 +12,7 @@
  *
  * Framework-agnostic — works in React, Vue, plain JS, or Node.js.
  *
- * @module stellargrant-fe/lib/stellar/subscription
+ * @module web/lib/stellar/subscription
  */
 
 // ── Public types ─────────────────────────────────────────────────────────────

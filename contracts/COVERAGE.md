@@ -1,6 +1,6 @@
 # Code Coverage
 
-This document describes the automated code coverage setup for the `stellargrant-contracts` workspace.
+This document describes the automated code coverage setup for the `contracts` workspace.
 
 ---
 
@@ -17,7 +17,7 @@ Coverage is measured using [`cargo-tarpaulin`](https://github.com/xd009642/tarpa
 
 ## Configuration
 
-**`.tarpaulin.toml`** (located in `stellargrant-contracts/`):
+**`.tarpaulin.toml`** (located in `contracts/`):
 
 ```toml
 [config]
@@ -43,7 +43,7 @@ cargo install cargo-tarpaulin
 ### Run
 
 ```bash
-cd stellargrant-contracts
+cd contracts
 cargo tarpaulin --workspace --lib --target x86_64-unknown-linux-gnu --engine llvm --out Xml
 ```
 

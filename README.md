@@ -61,9 +61,9 @@ All protocol state lives on the Soroban smart contract. The Next.js frontend rea
 ## Repository Layout
 
 ```
-stellargrant-fe/                  ← Monorepo root
-├── stellargrant-fe/              ← Next.js 16 frontend (primary package)
-├── stellargrant-contracts/       ← Soroban smart contracts (Rust → WASM)
+StellarGrantProtocol/              ← Monorepo root
+├── web/                           ← Next.js 16 frontend (primary package)
+├── contracts/                     ← Soroban smart contracts (Rust → WASM)
 ├── client/                       ← @stellargrants/client-sdk (TypeScript SDK)
 ├── api/                          ← Optional Express + TypeORM caching API
 ├── docker-compose.yml            ← Postgres + API service
@@ -78,8 +78,8 @@ stellargrant-fe/                  ← Monorepo root
 
 | Package | Tech | Purpose |
 |---------|------|---------|
-| [`stellargrant-fe/`](stellargrant-fe/) | Next.js 16, React 19, TypeScript | Full-featured web UI — grant browsing, creation, funding, milestone voting |
-| [`stellargrant-contracts/`](stellargrant-contracts/) | Rust, Soroban SDK | Smart contract: escrow, milestones, voting, payouts, events |
+| [`web/`](web/) | Next.js 16, React 19, TypeScript | Full-featured web UI — grant browsing, creation, funding, milestone voting |
+| [`contracts/`](contracts/) | Rust, Soroban SDK | Smart contract: escrow, milestones, voting, payouts, events |
 | [`client/`](client/) | TypeScript, stellar-sdk | `@stellargrants/client-sdk` — programmatic contract access for Node or bundlers |
 | [`api/`](api/) | Express, TypeORM, PostgreSQL | Optional middleware layer for caching, indexing, and server-side flows |
 
@@ -167,7 +167,7 @@ cd stellargrant-fe
 ### 2 — Frontend (Primary)
 
 ```bash
-cd stellargrant-fe
+cd web
 npm ci
 
 # Copy environment template and fill in your values
@@ -191,7 +191,7 @@ npm run dev:mock      # starts both mock server (port 4000) and Next.js (port 30
 ### 3 — Smart Contracts
 
 ```bash
-cd stellargrant-contracts
+cd contracts
 
 # Add WASM target if not already added
 rustup target add wasm32-unknown-unknown
@@ -212,7 +212,7 @@ make build
 #### Deploy to Testnet
 
 ```bash
-cd stellargrant-contracts/contracts/stellar-grants
+cd contracts/contracts/stellar-grants
 make build
 
 stellar contract deploy \
@@ -267,7 +267,7 @@ docker compose up    # Postgres + API
 
 ## Configuration
 
-### Frontend (`stellargrant-fe/.env.local`)
+### Frontend (`web/.env.local`)
 
 Create this file from the template — **never commit it**.
 
@@ -319,7 +319,7 @@ DATABASE_URL=postgres://user:password@localhost:5432/stellargrant
 
 ## Packages
 
-### `stellargrant-fe/` — Next.js Frontend
+### `web/` — Next.js Frontend
 
 The primary user-facing application. Key sub-directories:
 
@@ -362,7 +362,7 @@ stories/             Storybook component stories
 | `npm run storybook` | Storybook on port 6006 |
 | `npm run build-storybook` | Build static Storybook |
 
-### `stellargrant-contracts/` — Soroban Contracts
+### `contracts/` — Soroban Contracts
 
 Rust contracts compiled to WASM and deployed to Stellar. Core contract entry points:
 
@@ -416,7 +416,7 @@ Optional Express + TypeORM service that indexes on-chain events into PostgreSQL 
 ### Unit & Component Tests (Vitest)
 
 ```bash
-cd stellargrant-fe
+cd web
 npm test             # watch mode
 npm run test:run     # single pass with coverage
 ```
@@ -426,7 +426,7 @@ Tests live in `tests/` and co-located `*.test.tsx` files.
 ### End-to-End Tests (Playwright)
 
 ```bash
-cd stellargrant-fe
+cd web
 npm run test:e2e             # headless
 npm run test:e2e:headed      # with browser visible
 ```
@@ -436,7 +436,7 @@ E2E tests cover critical user flows: grant creation, funding, milestone submissi
 ### Contract Tests (Rust)
 
 ```bash
-cd stellargrant-contracts
+cd contracts
 cargo test
 ```
 
@@ -473,7 +473,7 @@ Always run `npm run lint`, `npm run test:run`, and `npm run build` locally befor
 
 ```bash
 npm install -g vercel
-cd stellargrant-fe
+cd web
 vercel           # preview
 vercel --prod    # production
 ```
@@ -507,8 +507,8 @@ The StellarGrants Protocol participates in the **Stellar Wave Program** on [Drip
 We welcome contributions of all kinds — bug fixes, new features, documentation, tests, and contract improvements. With over 60 contributors, StellarGrants is an active, community-driven project.
 
 - **Root contribution guide**: [CONTRIBUTING.md](CONTRIBUTING.md)
-- **Frontend-specific guide**: [stellargrant-fe/CONTRIBUTING.md](stellargrant-fe/CONTRIBUTING.md)
-- **Contract contribution guide**: [stellargrant-contracts/ContributionGuide.md](stellargrant-contracts/ContributionGuide.md)
+- **Frontend-specific guide**: [web/CONTRIBUTING.md](web/CONTRIBUTING.md)
+- **Contract contribution guide**: [contracts/ContributionGuide.md](contracts/ContributionGuide.md)
 - **Architecture reference**: [ARCHITECTURE.md](ARCHITECTURE.md)
 - **Developer setup**: [DEVELOPMENT.md](DEVELOPMENT.md)
 - **Code of Conduct**: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)

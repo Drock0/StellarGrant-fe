@@ -10,7 +10,7 @@
  * All classes carry the original `cause` so that stack traces are preserved
  * for debugging while still surfacing a human-readable `message`.
  *
- * @module stellargrant-fe/lib/errors/StellarGrantsError
+ * @module web/lib/errors/StellarGrantsError
  */
 
 import { ErrorCode, ERROR_MESSAGES } from "./errorCodes";

@@ -3,14 +3,14 @@
  *
  * Exhaustive registry of every numeric error code that the StellarGrants
  * Soroban contract can return. The numbers are taken directly from the
- * contract's `Error` enum (see `stellargrant-contracts/src/errors.rs`).
+ * contract's `Error` enum (see `contracts/src/errors.rs`).
  *
  * Keeping codes here as a plain const enum means:
  *   1. They are erased at compile time (no runtime overhead).
  *   2. They can be used as both type and value in switch statements.
  *   3. A single source of truth shared by the mapper and the SDK.
  *
- * @module stellargrant-fe/lib/errors/errorCodes
+ * @module web/lib/errors/errorCodes
  */
 
 // ── Numeric error codes ───────────────────────────────────────────────────────

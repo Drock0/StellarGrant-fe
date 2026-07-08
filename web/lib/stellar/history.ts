@@ -13,7 +13,7 @@
  * The response is a unified `GrantHistoryRecord[]` that is typed,
  * paginated, and ready for display in a dashboard.
  *
- * @module stellargrant-fe/lib/stellar/history
+ * @module web/lib/stellar/history
  */
 
 import { getHorizonClient } from "./client";

@@ -154,7 +154,7 @@ Before you begin, ensure you have the following installed:
 ### Build the Contract
 
 ```bash
-# From stellargrant-contracts/
+# From contracts/
 stellar contract build --package stellar-grants --locked
 ```
 
@@ -260,7 +260,7 @@ Fuzz testing is used to catch edge cases, arithmetic overflows, and unpredictabl
 
 #### How to Run Fuzzers
 
-From the `stellargrant-contracts` directory:
+From the `contracts` directory:
 
 ```bash
 cd fuzz

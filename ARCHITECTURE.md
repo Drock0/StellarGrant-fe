@@ -76,8 +76,8 @@ This document covers the system architecture in depth: data flow, rendering stra
 
 | Package | Language | Role |
 |---------|----------|------|
-| `stellargrant-fe/` | TypeScript / Next.js | Primary web UI — all user-facing features |
-| `stellargrant-contracts/` | Rust / Soroban SDK | On-chain logic: escrow, milestones, voting, payouts |
+| `web/` | TypeScript / Next.js | Primary web UI — all user-facing features |
+| `contracts/` | Rust / Soroban SDK | On-chain logic: escrow, milestones, voting, payouts |
 | `client/` | TypeScript | Typed SDK for programmatic contract interaction |
 | `api/` | TypeScript / Express | Optional caching and indexing layer |
 

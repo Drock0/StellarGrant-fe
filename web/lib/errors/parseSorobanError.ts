@@ -14,7 +14,7 @@
  *   4. Horizon `{ status: 4xx/5xx }`   — network-level failure
  *   5. Anything else                    — generic StellarGrantsError
  *
- * @module stellargrant-fe/lib/errors/parseSorobanError
+ * @module web/lib/errors/parseSorobanError
  */
 
 import { ErrorCode, ERROR_MESSAGES } from "./errorCodes";

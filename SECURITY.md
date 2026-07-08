@@ -56,7 +56,7 @@ We ask that you keep the vulnerability confidential until a fix has been release
 
 ### Dependency Scanning
 
-- **`npm audit`** runs in CI on every PR targeting `stellargrant-fe/` and `api/`. The build fails if any `high` or `critical` severity vulnerabilities are found.
+- **`npm audit`** runs in CI on every PR targeting `web/` and `api/`. The build fails if any `high` or `critical` severity vulnerabilities are found.
 - **Dependabot** is configured to check for dependency updates weekly across npm and Cargo ecosystems. Dependabot PRs are reviewed and merged promptly.
 
 ### Static Analysis
