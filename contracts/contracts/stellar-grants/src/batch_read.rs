@@ -4,14 +4,14 @@ use crate::errors::ContractError;
 use crate::grant_index;
 use crate::storage::Storage;
 use crate::types::{
-    DashboardView, ExportGrant, GrantDetailView, Milestone, MilestoneState, ProtocolMetrics,
+    DashboardView, GrantCard, GrantDetailView, Milestone, MilestoneState, ProtocolMetrics,
     ReviewerProfile, ReviewerView,
 };
 
 const MAX_MULTI_GRANT_BATCH: u32 = 10;
 
-fn build_export_grant(grant: &crate::types::Grant) -> ExportGrant {
-    ExportGrant {
+fn build_export_grant(grant: &crate::types::Grant) -> GrantCard {
+    GrantCard {
         id: grant.id,
         owner: grant.owner.clone(),
         title: grant.title.clone(),
@@ -189,7 +189,7 @@ pub fn multi_grant_detail(
 }
 
 /// Return minimal grant cards for a list of grant IDs (cheaper than full detail).
-pub fn grant_cards(env: &Env, grant_ids: Vec<u64>) -> Vec<ExportGrant> {
+pub fn grant_cards(env: &Env, grant_ids: Vec<u64>) -> Vec<GrantCard> {
     let mut cards = Vec::new(env);
     for grant_id in grant_ids.iter() {
         if let Some(grant) = Storage::get_grant(env, grant_id) {
