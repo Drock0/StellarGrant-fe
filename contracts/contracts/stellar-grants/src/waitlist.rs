@@ -40,7 +40,7 @@ pub fn join(env: &Env, applicant: &Address, grant_id: u64) -> Result<u32, Contra
     }
 
     // Get applicant's reputation score
-    let profile = Storage::get_contributor(env, applicant)
+    let profile = Storage::get_contributor(env, applicant.clone())
         .ok_or(ContractError::ContributorNotFound)?;
     let reputation_snapshot = profile.reputation_score as u32;
 
@@ -50,7 +50,8 @@ pub fn join(env: &Env, applicant: &Address, grant_id: u64) -> Result<u32, Contra
     if config.rank_by_reputation {
         // Insert in sorted order by reputation (highest first)
         let mut insert_idx = entries.len();
-        for (idx, entry) in entries.iter().enumerate() {
+        for idx in 0..entries.len() {
+            let entry = entries.get(idx).unwrap();
             if reputation_snapshot > entry.reputation_snapshot {
                 insert_idx = idx;
                 break;
@@ -62,17 +63,19 @@ pub fn join(env: &Env, applicant: &Address, grant_id: u64) -> Result<u32, Contra
             grant_id,
             joined_at,
             reputation_snapshot,
-            position: (insert_idx + 1) as u32,
+            position: insert_idx + 1,
             promoted: false,
             promoted_at: None,
         };
 
-        entries.insert(insert_idx as u32, new_entry);
-        position = (insert_idx + 1) as u32;
+        entries.insert(insert_idx, new_entry);
+        position = insert_idx + 1;
 
         // Re-index all entries after insertion point
         for idx in (insert_idx + 1)..entries.len() {
-            entries[idx].position = (idx + 1) as u32;
+            let mut entry = entries.get(idx).unwrap();
+            entry.position = idx + 1;
+            entries.set(idx, entry);
         }
     } else {
         // FIFO: append to end
@@ -101,7 +104,8 @@ pub fn leave(env: &Env, applicant: &Address, grant_id: u64) -> Result<(), Contra
     let mut entries = Storage::get_waitlist_entries(env, grant_id);
 
     let mut found_idx = None;
-    for (idx, entry) in entries.iter().enumerate() {
+    for idx in 0..entries.len() {
+        let entry = entries.get(idx).unwrap();
         if entry.applicant == *applicant {
             found_idx = Some(idx);
             break;
@@ -111,11 +115,13 @@ pub fn leave(env: &Env, applicant: &Address, grant_id: u64) -> Result<(), Contra
     let idx = found_idx.ok_or(ContractError::NotOnWaitlist)?;
 
     // Remove the entry
-    entries.remove(idx as u32);
+    entries.remove(idx);
 
     // Re-index remaining entries
     for i in idx..entries.len() {
-        entries[i].position = (i + 1) as u32;
+        let mut entry = entries.get(i).unwrap();
+        entry.position = i + 1;
+        entries.set(i, entry);
     }
 
     Storage::set_waitlist_entries(env, grant_id, &entries);
@@ -142,15 +148,19 @@ pub fn promote_next(env: &Env, grant_id: u64) -> Option<Address> {
     let promoted_entry = entries.get(0)?.clone();
 
     // Mark as promoted
-    entries[0].promoted = true;
-    entries[0].promoted_at = Some(env.ledger().timestamp());
+    let mut first = entries.get(0).unwrap();
+    first.promoted = true;
+    first.promoted_at = Some(env.ledger().timestamp());
+    entries.set(0, first);
 
     // Remove from waitlist
     entries.remove(0);
 
     // Re-index remaining entries
     for i in 0..entries.len() {
-        entries[i].position = (i + 1) as u32;
+        let mut entry = entries.get(i).unwrap();
+        entry.position = i + 1;
+        entries.set(i, entry);
     }
 
     Storage::set_waitlist_entries(env, grant_id, &entries);
@@ -212,8 +222,12 @@ mod tests {
             total_earned: 0,
             milestones_completed: 0,
             milestones_rejected: 0,
-            registered_at: 0,
-            metadata: Vec::new(&env),
+            bio: String::from_str(&env, ""),
+            skills: Vec::new(&env),
+            github_url: String::from_str(&env, ""),
+            registration_timestamp: 0,
+            grants_count: 0,
+            last_action_at: 0,
         };
         Storage::set_contributor(&env, applicant1.clone(), &mut profile1);
 
@@ -224,8 +238,12 @@ mod tests {
             total_earned: 0,
             milestones_completed: 0,
             milestones_rejected: 0,
-            registered_at: 0,
-            metadata: Vec::new(&env),
+            bio: String::from_str(&env, ""),
+            skills: Vec::new(&env),
+            github_url: String::from_str(&env, ""),
+            registration_timestamp: 0,
+            grants_count: 0,
+            last_action_at: 0,
         };
         Storage::set_contributor(&env, applicant2.clone(), &mut profile2);
 
@@ -236,8 +254,12 @@ mod tests {
             total_earned: 0,
             milestones_completed: 0,
             milestones_rejected: 0,
-            registered_at: 0,
-            metadata: Vec::new(&env),
+            bio: String::from_str(&env, ""),
+            skills: Vec::new(&env),
+            github_url: String::from_str(&env, ""),
+            registration_timestamp: 0,
+            grants_count: 0,
+            last_action_at: 0,
         };
         Storage::set_contributor(&env, applicant3.clone(), &mut profile3);
 
@@ -250,12 +272,12 @@ mod tests {
         assert_eq!(waitlist.len(), 3);
 
         // Verify order: highest reputation first (800, 600, 500)
-        assert_eq!(waitlist[0].applicant, applicant2);
-        assert_eq!(waitlist[0].position, 1);
-        assert_eq!(waitlist[1].applicant, applicant3);
-        assert_eq!(waitlist[1].position, 2);
-        assert_eq!(waitlist[2].applicant, applicant1);
-        assert_eq!(waitlist[2].position, 3);
+        assert_eq!(waitlist.get(0).unwrap().applicant, applicant2);
+        assert_eq!(waitlist.get(0).unwrap().position, 1);
+        assert_eq!(waitlist.get(1).unwrap().applicant, applicant3);
+        assert_eq!(waitlist.get(1).unwrap().position, 2);
+        assert_eq!(waitlist.get(2).unwrap().applicant, applicant1);
+        assert_eq!(waitlist.get(2).unwrap().position, 3);
     }
 
     #[test]
@@ -286,8 +308,12 @@ mod tests {
             total_earned: 0,
             milestones_completed: 0,
             milestones_rejected: 0,
-            registered_at: 0,
-            metadata: Vec::new(&env),
+            bio: String::from_str(&env, ""),
+            skills: Vec::new(&env),
+            github_url: String::from_str(&env, ""),
+            registration_timestamp: 0,
+            grants_count: 0,
+            last_action_at: 0,
         };
         Storage::set_contributor(&env, applicant1.clone(), &mut profile);
 
@@ -306,9 +332,9 @@ mod tests {
         assert_eq!(waitlist.len(), 3);
 
         // Verify FIFO order
-        assert_eq!(waitlist[0].applicant, applicant1);
-        assert_eq!(waitlist[1].applicant, applicant2);
-        assert_eq!(waitlist[2].applicant, applicant3);
+        assert_eq!(waitlist.get(0).unwrap().applicant, applicant1);
+        assert_eq!(waitlist.get(1).unwrap().applicant, applicant2);
+        assert_eq!(waitlist.get(2).unwrap().applicant, applicant3);
     }
 
     #[test]
@@ -339,8 +365,12 @@ mod tests {
             total_earned: 0,
             milestones_completed: 0,
             milestones_rejected: 0,
-            registered_at: 0,
-            metadata: Vec::new(&env),
+            bio: String::from_str(&env, ""),
+            skills: Vec::new(&env),
+            github_url: String::from_str(&env, ""),
+            registration_timestamp: 0,
+            grants_count: 0,
+            last_action_at: 0,
         };
         Storage::set_contributor(&env, applicant1.clone(), &mut profile);
 
@@ -359,10 +389,10 @@ mod tests {
 
         let waitlist = get_waitlist(&env, grant_id);
         assert_eq!(waitlist.len(), 2);
-        assert_eq!(waitlist[0].applicant, applicant1);
-        assert_eq!(waitlist[0].position, 1);
-        assert_eq!(waitlist[1].applicant, applicant3);
-        assert_eq!(waitlist[1].position, 2);
+        assert_eq!(waitlist.get(0).unwrap().applicant, applicant1);
+        assert_eq!(waitlist.get(0).unwrap().position, 1);
+        assert_eq!(waitlist.get(1).unwrap().applicant, applicant3);
+        assert_eq!(waitlist.get(1).unwrap().position, 2);
     }
 
     #[test]
@@ -393,8 +423,12 @@ mod tests {
             total_earned: 0,
             milestones_completed: 0,
             milestones_rejected: 0,
-            registered_at: 0,
-            metadata: Vec::new(&env),
+            bio: String::from_str(&env, ""),
+            skills: Vec::new(&env),
+            github_url: String::from_str(&env, ""),
+            registration_timestamp: 0,
+            grants_count: 0,
+            last_action_at: 0,
         };
         Storage::set_contributor(&env, applicant1.clone(), &mut profile);
 
@@ -439,8 +473,12 @@ mod tests {
             total_earned: 0,
             milestones_completed: 0,
             milestones_rejected: 0,
-            registered_at: 0,
-            metadata: Vec::new(&env),
+            bio: String::from_str(&env, ""),
+            skills: Vec::new(&env),
+            github_url: String::from_str(&env, ""),
+            registration_timestamp: 0,
+            grants_count: 0,
+            last_action_at: 0,
         };
         Storage::set_contributor(&env, applicant1.clone(), &mut profile);
 
@@ -456,8 +494,8 @@ mod tests {
 
         let waitlist = get_waitlist(&env, grant_id);
         assert_eq!(waitlist.len(), 1);
-        assert_eq!(waitlist[0].applicant, applicant2);
-        assert_eq!(waitlist[0].position, 1);
+        assert_eq!(waitlist.get(0).unwrap().applicant, applicant2);
+        assert_eq!(waitlist.get(0).unwrap().position, 1);
     }
 
     #[test]
@@ -487,8 +525,12 @@ mod tests {
             total_earned: 0,
             milestones_completed: 0,
             milestones_rejected: 0,
-            registered_at: 0,
-            metadata: Vec::new(&env),
+            bio: String::from_str(&env, ""),
+            skills: Vec::new(&env),
+            github_url: String::from_str(&env, ""),
+            registration_timestamp: 0,
+            grants_count: 0,
+            last_action_at: 0,
         };
         Storage::set_contributor(&env, applicant1.clone(), &mut profile);
 
