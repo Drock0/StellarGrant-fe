@@ -1,9 +1,11 @@
 use super::keys::{
-    ArbitrationKey, BondKey, CollateralKey, CrowdfundKey, DataKey, EscrowKey, GrantKey,
-    InsuranceKey, MilestoneKey, UserKey, VotingKey, WaitlistKey,
+    ArbitrationKey, AutoApproveKey, BondKey, CollateralKey, ConditionalReleaseKey, CrowdfundKey,
+    DataKey, EscrowKey, GrantKey, GrantTimerKey, InsuranceKey, MilestoneKey, UserKey, VotingKey,
+    WaitlistKey,
 };
 use crate::types::{
-    AcceptanceCriteria, Amendment, AnalyticsSnapshot, AuditEntry, BreakerState, ChecklistSubmission,
+    AcceptanceCriteria, Amendment, AnalyticsSnapshot, AuditEntry, AutoApproveConfig,
+    AutoApproveRecord, BreakerState, ChecklistSubmission,
     ClawbackRequest, ComplianceAttestation, ContractError, ContractVersion,
     ContributorProfile, CrowdfundCampaign, CrowdfundPledge, DexConfig, Dispute, EscrowAccount,
     EscrowState, EvidenceSchema, FunderLedger, Grant, GrantCategory, GrantTag, GrantVersion,
@@ -11,9 +13,11 @@ use crate::types::{
     MerkleCommitment, MigrationRecord, Milestone, MilestoneDag, MilestoneNft, MultisigProposal,
     OracleConfig, ParamRecord, PauseRecord, PaymentSplit, PaymentStream, ProtocolConfig,
     ProtocolMetrics, ProtocolModule, PublicReview, QuadraticVoteRecord, RateLimitAction,
-    RateLimitRecord, RegistryEntry, RelayAllowance, RelayConfig, RenewalProposal, ReviewerProfile,
-    ReviewerRequest, Role, RoleAssignment, RollingWindow, ScoringRubric, StructuredEvidence,
-    SyndicateGrant, SyndicateMember, TokenMetric, TransferProposal, VoiceCredits, VotingMechanism,
+    RateLimitRecord, RegistryEntry, RelayAllowance, RelayConfig, ReleaseCondition, RenewalProposal,
+    RevenueEpoch, ReviewerProfile,
+    ReviewerRequest, Role, RoleAssignment, RollingWindow, ScoringRubric, StakerEpochRecord, StructuredEvidence,
+    SyndicateGrant, SyndicateMember, TimerRecord, TokenMetric, TransferProposal,
+    VerificationAttestation, VoiceCredits, VotingMechanism,
     WaitlistConfig, WaitlistEntry,
 };
 use crate::types::{
@@ -83,6 +87,49 @@ impl Storage {
         env.storage()
             .persistent()
             .has(&DataKey::Grant(GrantKey::Data(grant_id)))
+    }
+
+    /// Append a grant id to the owner's portfolio index (used by multi_grant queries).
+    pub fn push_owner_grant_id(env: &Env, owner: &Address, grant_id: u64) {
+        let key = DataKey::Grant(GrantKey::OwnerIndex(owner.clone()));
+        let mut ids: Vec<u64> = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .unwrap_or_else(|| Vec::new(env));
+        ids.push_back(grant_id);
+        env.storage().persistent().set(&key, &ids);
+        Self::bump(env, &key);
+    }
+
+    // ── Protocol revenue sharing (staker epochs) ────────────────────────────
+
+    pub fn get_revenue_epoch(env: &Env, epoch_id: u32) -> Option<RevenueEpoch> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::RevenueEpoch(epoch_id))
+    }
+
+    pub fn set_revenue_epoch(env: &Env, epoch: &RevenueEpoch) {
+        let key = DataKey::RevenueEpoch(epoch.id);
+        env.storage().persistent().set(&key, epoch);
+        Self::bump(env, &key);
+    }
+
+    pub fn get_staker_epoch_record(
+        env: &Env,
+        staker: &Address,
+        epoch_id: u32,
+    ) -> Option<StakerEpochRecord> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::StakerEpochRecord(staker.clone(), epoch_id))
+    }
+
+    pub fn set_staker_epoch_record(env: &Env, record: &StakerEpochRecord) {
+        let key = DataKey::StakerEpochRecord(record.staker.clone(), record.epoch_id);
+        env.storage().persistent().set(&key, record);
+        Self::bump(env, &key);
     }
 
     pub fn get_milestone(env: &Env, grant_id: u64, milestone_idx: u32) -> Option<Milestone> {
