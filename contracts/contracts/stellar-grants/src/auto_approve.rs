@@ -2,10 +2,9 @@ use soroban_sdk::{Address, Env};
 
 use crate::errors::ContractError;
 use crate::governance;
+use crate::governance::VoteResult;
 use crate::storage::Storage;
-use crate::types::{
-    AutoApproveConfig, AutoApproveRecord, MilestoneState, VoteResult,
-};
+use crate::types::{AutoApproveConfig, AutoApproveRecord, MilestoneState};
 
 /// Configure auto-approve for a grant. Owner only.
 pub fn set_config(
