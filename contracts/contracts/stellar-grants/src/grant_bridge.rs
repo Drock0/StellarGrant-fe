@@ -4,7 +4,7 @@ use crate::storage::keys::DataKey;
 
 pub fn register_relayer(env: &Env, admin: &Address, relayer: Address, authorized_chains: Vec<ChainId>) -> Result<(), ContractError> {
     admin.require_auth();
-    if crate::storage::helpers::get_global_admin(env) != Some(admin.clone()) {
+    if crate::storage::helpers::Storage::get_global_admin(env) != Some(admin.clone()) {
         return Err(ContractError::Unauthorized);
     }
     
@@ -21,7 +21,7 @@ pub fn register_relayer(env: &Env, admin: &Address, relayer: Address, authorized
 
 pub fn deactivate_relayer(env: &Env, admin: &Address, relayer: Address) -> Result<(), ContractError> {
     admin.require_auth();
-    if crate::storage::helpers::get_global_admin(env) != Some(admin.clone()) {
+    if crate::storage::helpers::Storage::get_global_admin(env) != Some(admin.clone()) {
         return Err(ContractError::Unauthorized);
     }
     
