@@ -168,11 +168,19 @@ pub enum ContractError {
     AutoApproveGracePeriodNotPassed = 129,
     AutoApproveInsufficientVotes = 130,
     // Grant timer (#618)
-    TimerNotFound = 131,
+    TimerNotFound = 137,
     TimerAlreadyFired = 132,
     TimerNotEligible = 133,
     // Waitlist module
     WaitlistFull = 134,
     AlreadyOnWaitlist = 135,
     NotOnWaitlist = 136,
+    ContributorNotFound = 138,
+    // Lockup (#609)
+    LockupAlreadyExists = 139,
+    LockupNotFound = 140,
+    LockupAlreadyReleased = 141,
+    NotYetUnlocked = 142,
+    LockupRevocationUnauthorized = 143,
+    LockupAlreadyRevoked = 144,
 }
