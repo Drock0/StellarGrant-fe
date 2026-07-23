@@ -1,11 +1,11 @@
 use soroban_sdk::{Address, Env, String, Symbol};
 use crate::types::{GrantPauseRecord, ContractError};
 use crate::storage::keys::DataKey;
-use crate::storage::helpers;
+use crate::storage::helpers::Storage;
 
 pub fn pause(env: &Env, caller: &Address, grant_id: u64, reason: String, auto_unpause_at: Option<u64>) -> Result<(), ContractError> {
     caller.require_auth();
-    let grant = helpers::get_grant(env, grant_id).ok_or(ContractError::NotFound)?;
+    let grant = Storage::get_grant(env, grant_id).ok_or(ContractError::GrantNotFound)?;
     if grant.owner != *caller {
         return Err(ContractError::Unauthorized);
     }
@@ -39,7 +39,7 @@ pub fn pause(env: &Env, caller: &Address, grant_id: u64, reason: String, auto_un
 
 pub fn unpause(env: &Env, caller: &Address, grant_id: u64) -> Result<(), ContractError> {
     caller.require_auth();
-    let grant = helpers::get_grant(env, grant_id).ok_or(ContractError::NotFound)?;
+    let grant = Storage::get_grant(env, grant_id).ok_or(ContractError::GrantNotFound)?;
     if grant.owner != *caller {
         return Err(ContractError::Unauthorized);
     }
