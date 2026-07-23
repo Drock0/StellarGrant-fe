@@ -433,6 +433,10 @@ pub struct ProtocolConfig {
     pub fast_bonus_bps: u32,
     /// Payouts above this amount require KYC verification. i128::MAX disables the gate.
     pub kyc_payout_threshold: i128,
+    /// Share of protocol fee directed to the staker revenue-share pool, in basis points.
+    pub revenue_share_pool_bps: u32,
+    /// Number of multisig approvals required to release a high-value escrow request.
+    pub multisig_escrow_threshold: u32,
 }
 
 // ── Issue #632: Contributor Verification ───────────────────────────────────
@@ -2131,20 +2135,15 @@ pub struct BatchItemResult {
     pub error_code: Option<u32>,
 }
 
-#[contracttype]
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct BatchResult {
-    pub total: u32,
-    pub succeeded: u32,
-    pub failed: u32,
-    pub results: soroban_sdk::Vec<BatchItemResult>,
-}
+// NOTE: this batch-op BatchResult (total/succeeded/failed/results) is unused
+// while `batch.rs` stays unwired from lib.rs, to avoid clashing with the
+// multi_grant::BatchResult shape (successful/failed/total) already exported.
 
 // ── Issue #622: Batch Read View Types ─────────────────────────────────────
 
 #[contracttype]
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ExportGrant {
+pub struct GrantCard {
     pub id: u64,
     pub owner: Address,
     pub title: String,
@@ -2287,4 +2286,112 @@ pub struct GrantPauseRecord {
     pub reason: String,
     pub auto_unpause_at: Option<u64>,
     pub unpause_history: Vec<(Address, u64)>,
+}
+
+// ── Escrow multisig release (high-value grant payouts) ─────────────────────
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EscrowReleaseApproval {
+    pub approver: Address,
+    pub timestamp: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct EscrowReleaseRequest {
+    pub grant_id: u64,
+    pub milestone_idx: u32,
+    pub amount: i128,
+    pub recipient: Address,
+    pub approvals: soroban_sdk::Vec<EscrowReleaseApproval>,
+    pub expires_at: u64,
+    pub executed: bool,
+}
+
+// ── Cross-chain milestone proofs via authorized relayers ───────────────────
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[repr(u32)]
+pub enum ChainId {
+    Ethereum = 0,
+    Polygon = 1,
+    Bsc = 2,
+    Avalanche = 3,
+    Arbitrum = 4,
+    Optimism = 5,
+    Solana = 6,
+    Other = 7,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BridgeRelayer {
+    pub address: Address,
+    pub is_active: bool,
+    pub registered_at: u64,
+    pub authorized_chains: soroban_sdk::Vec<ChainId>,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CrossChainProof {
+    pub chain_id: ChainId,
+    pub tx_hash: String,
+    pub relayer: Address,
+    pub verified_at: u64,
+}
+
+// ── Reusable milestone templates ────────────────────────────────────────────
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[repr(u32)]
+pub enum TemplateCategory {
+    Research = 0,
+    Development = 1,
+    Community = 2,
+    Marketing = 3,
+    Design = 4,
+    Other = 5,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MilestoneTemplate {
+    pub id: u64,
+    pub owner: Address,
+    pub name: String,
+    pub description: String,
+    pub category: TemplateCategory,
+    pub default_amount_pct: u32,
+    pub is_public: bool,
+    pub use_count: u32,
+}
+
+// ── Protocol revenue sharing (staker epochs) ────────────────────────────────
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RevenueEpoch {
+    pub id: u32,
+    pub start_at: u64,
+    pub end_at: u64,
+    pub total_revenue: i128,
+    pub token: Address,
+    pub total_stake_weight: i128,
+    pub finalized: bool,
+    pub claimed_count: u32,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StakerEpochRecord {
+    pub staker: Address,
+    pub epoch_id: u32,
+    pub stake_weight: i128,
+    pub claimable: i128,
+    pub claimed: bool,
+    pub claimed_at: Option<u64>,
 }
