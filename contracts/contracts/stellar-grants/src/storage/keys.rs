@@ -176,6 +176,25 @@ pub enum MatchingKey {
     Counter,
 }
 
+#[contracttype]
+#[derive(Clone)]
+pub enum ConditionalReleaseKey {
+    Conditions(u64, u32),
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub enum AutoApproveKey {
+    Config(u64),
+    Record(u64, u32),
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub enum GrantTimerKey {
+    Timers(u64),
+}
+
 // ── Structured DataKey ────────────────────────────────────────────────────────
 
 #[contracttype]
@@ -196,6 +215,9 @@ pub enum DataKey {
     ConditionalRelease(ConditionalReleaseKey),
     AutoApprove(AutoApproveKey),
     GrantTimer(GrantTimerKey),
+    Matching(MatchingKey),
+    Provenance(ProvenanceKey),
+    ReviewerReward(ReviewerRewardKey),
 
     // Streaming
     Stream(u32),
@@ -271,6 +293,10 @@ pub enum DataKey {
     MilestoneTemplate(u64),
     TemplatesByOwner(Address),
     TemplateCounter,
+
+    // Protocol revenue sharing (staker epochs)
+    RevenueEpoch(u32),
+    StakerEpochRecord(Address, u32),
 
     // Migration guard
     V2KeysMigrated,
