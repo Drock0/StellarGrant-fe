@@ -191,9 +191,12 @@ mod tests {
         env.ledger().set(soroban_sdk::testutils::LedgerInfo {
             timestamp: 1000,
             protocol_version: 21,
-            sequence: 100,
+            sequence_number: 100,
             base_reserve: 10,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
+            min_temp_entry_ttl: 100_000,
+            min_persistent_entry_ttl: 100_000,
+            max_entry_ttl: 1_000_000,
         });
 
         let grant_id = 1u64;
@@ -213,9 +216,12 @@ mod tests {
         env.ledger().set(soroban_sdk::testutils::LedgerInfo {
             timestamp: 1000,
             protocol_version: 21,
-            sequence: 100,
+            sequence_number: 100,
             base_reserve: 10,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
+            min_temp_entry_ttl: 100_000,
+            min_persistent_entry_ttl: 100_000,
+            max_entry_ttl: 1_000_000,
         });
 
         let result = attach_lockup(&env, &owner, 1, 0, 604800);
@@ -231,9 +237,12 @@ mod tests {
         env.ledger().set(soroban_sdk::testutils::LedgerInfo {
             timestamp: 1000,
             protocol_version: 21,
-            sequence: 100,
+            sequence_number: 100,
             base_reserve: 10,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
+            min_temp_entry_ttl: 100_000,
+            min_persistent_entry_ttl: 100_000,
+            max_entry_ttl: 1_000_000,
         });
 
         attach_lockup(&env, &owner, 1, 0, 604800).unwrap();
@@ -251,9 +260,12 @@ mod tests {
         env.ledger().set(soroban_sdk::testutils::LedgerInfo {
             timestamp: 1000,
             protocol_version: 21,
-            sequence: 100,
+            sequence_number: 100,
             base_reserve: 10,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
+            min_temp_entry_ttl: 100_000,
+            min_persistent_entry_ttl: 100_000,
+            max_entry_ttl: 1_000_000,
         });
 
         attach_lockup(&env, &owner, 1, 0, 100).unwrap();
@@ -264,9 +276,12 @@ mod tests {
         env.ledger().set(soroban_sdk::testutils::LedgerInfo {
             timestamp: 1200,
             protocol_version: 21,
-            sequence: 140,
+            sequence_number: 140,
             base_reserve: 10,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
+            min_temp_entry_ttl: 100_000,
+            min_persistent_entry_ttl: 100_000,
+            max_entry_ttl: 1_000_000,
         });
 
         let amount = release(&env, &contributor, 1, 0).unwrap();
@@ -282,9 +297,12 @@ mod tests {
         env.ledger().set(soroban_sdk::testutils::LedgerInfo {
             timestamp: 1000,
             protocol_version: 21,
-            sequence: 100,
+            sequence_number: 100,
             base_reserve: 10,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
+            min_temp_entry_ttl: 100_000,
+            min_persistent_entry_ttl: 100_000,
+            max_entry_ttl: 1_000_000,
         });
 
         let grant_id = 1u64;
@@ -302,9 +320,12 @@ mod tests {
         env.ledger().set(soroban_sdk::testutils::LedgerInfo {
             timestamp: 1000,
             protocol_version: 21,
-            sequence: 100,
+            sequence_number: 100,
             base_reserve: 10,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
+            min_temp_entry_ttl: 100_000,
+            min_persistent_entry_ttl: 100_000,
+            max_entry_ttl: 1_000_000,
         });
 
         attach_lockup(&env, &owner, 1, 0, 100).unwrap();
@@ -314,9 +335,12 @@ mod tests {
         env.ledger().set(soroban_sdk::testutils::LedgerInfo {
             timestamp: 1100,
             protocol_version: 21,
-            sequence: 120,
+            sequence_number: 120,
             base_reserve: 10,
-            network_passphrase: Default::default(),
+            network_id: Default::default(),
+            min_temp_entry_ttl: 100_000,
+            min_persistent_entry_ttl: 100_000,
+            max_entry_ttl: 1_000_000,
         });
 
         assert!(is_unlocked(&env, 1, 0));
