@@ -155,9 +155,9 @@ mod tests {
     }
 
     #[test]
-    fn test_proportional_share_zero_whole() {
+    fn test_proportional_share_invalid_bps() {
         assert_eq!(
-            proportional_share(50, 0, 100),
+            proportional_share(50, 10_001),
             Err(ContractError::InvalidInput)
         );
     }
