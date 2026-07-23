@@ -295,6 +295,7 @@ mod tests {
             proof_url: None,
             submission_timestamp: env.ledger().timestamp(),
             deadline: None,
+            reviewer_count_snapshot: 0,
         }
     }
 
