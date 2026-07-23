@@ -65,7 +65,7 @@ StellarGrantProtocol/              ← Monorepo root
 ├── web/                           ← Next.js 16 frontend (primary package)
 ├── contracts/                     ← Soroban smart contracts (Rust → WASM)
 ├── client/                       ← @stellargrants/client-sdk (TypeScript SDK)
-├── api/                          ← Optional Express + TypeORM caching API
+├── backend/                      ← Optional Express + TypeORM caching API
 ├── docker-compose.yml            ← Postgres + API service
 ├── .github/workflows/ci.yml      ← GitHub Actions CI
 ├── TUTORIAL.md                   ← Beginner end-to-end walkthrough
@@ -81,7 +81,7 @@ StellarGrantProtocol/              ← Monorepo root
 | [`web/`](web/) | Next.js 16, React 19, TypeScript | Full-featured web UI — grant browsing, creation, funding, milestone voting |
 | [`contracts/`](contracts/) | Rust, Soroban SDK | Smart contract: escrow, milestones, voting, payouts, events |
 | [`client/`](client/) | TypeScript, stellar-sdk | `@stellargrants/client-sdk` — programmatic contract access for Node or bundlers |
-| [`api/`](api/) | Express, TypeORM, PostgreSQL | Optional middleware layer for caching, indexing, and server-side flows |
+| [`backend/`](backend/) | Express, TypeORM, PostgreSQL | Optional middleware layer for caching, indexing, and server-side flows |
 
 ---
 
@@ -119,10 +119,10 @@ StellarGrantProtocol/              ← Monorepo root
 └───────────────────────────────────────────────────────────────┘
             │
             ▼ (optional)
-┌───────────────────────┐
-│  Express API (api/)   │  ← caching, indexing, SSE relay
-│  PostgreSQL           │
-└───────────────────────┘
+┌─────────────────────────┐
+│  Express API (backend/) │  ← caching, indexing, SSE relay
+│  PostgreSQL             │
+└─────────────────────────┘
 ```
 
 ### Key Design Decisions
@@ -247,7 +247,7 @@ npm test
 ### 5 — Optional Express API
 
 ```bash
-cd api
+cd backend
 npm ci
 
 # Set up environment (requires PostgreSQL)
@@ -308,7 +308,7 @@ NEXT_PUBLIC_POSTHOG_HOST=https://app.posthog.com
 
 > **Security**: Variables prefixed `NEXT_PUBLIC_` are bundled into the client. Never prefix secrets (API keys, private keys) with `NEXT_PUBLIC_`.
 
-### API (`api/.env`)
+### API (`backend/.env`)
 
 ```env
 PORT=4000
@@ -383,7 +383,7 @@ Rust contracts compiled to WASM and deployed to Stellar. Core contract entry poi
 cd client && npm ci && npm run build
 ```
 
-### `api/` — Express Caching API
+### `backend/` — Express Caching API
 
 Optional Express + TypeORM service that indexes on-chain events into PostgreSQL for faster queries and server-side validation. Not required for core frontend functionality.
 
@@ -443,7 +443,7 @@ cargo test
 ### API Tests
 
 ```bash
-cd api
+cd backend
 npm run test:e2e           # end-to-end API tests
 npm run test:integration   # integration tests
 ```
@@ -486,7 +486,7 @@ Set all `NEXT_PUBLIC_*` variables and server-side secrets in Vercel's Environmen
 docker compose up --build
 ```
 
-The `api/Dockerfile` builds a Node 20-alpine image. PostgreSQL is provisioned as a compose service.
+The `backend/Dockerfile` builds a Node 20-alpine image. PostgreSQL is provisioned as a compose service.
 
 ---
 

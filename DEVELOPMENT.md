@@ -72,7 +72,7 @@ After installation:
 
 ### PostgreSQL (API only)
 
-Only required if you plan to run the `api/` package. Either install PostgreSQL locally or use Docker:
+Only required if you plan to run the `backend/` package. Either install PostgreSQL locally or use Docker:
 
 ```bash
 # Docker (easiest)
@@ -282,12 +282,12 @@ For a complete walkthrough see [TUTORIAL.md](TUTORIAL.md).
 
 ## API Setup (Optional)
 
-The Express API lives in `api/`. It is not required for frontend development but provides faster queries and SSE relay.
+The Express API lives in `backend/`. It is not required for frontend development but provides faster queries and SSE relay.
 
 ### 1. Install Dependencies
 
 ```bash
-cd api
+cd backend
 npm ci
 ```
 
@@ -372,7 +372,7 @@ For full local development with all services:
 
 **Terminal 1 — Postgres + API:**
 ```bash
-docker compose up          # or: cd api && npm run dev (if Postgres already running)
+docker compose up          # or: cd backend && npm run dev (if Postgres already running)
 ```
 
 **Terminal 2 — Frontend:**
@@ -426,7 +426,7 @@ cargo test
 ### API Tests
 
 ```bash
-cd api
+cd backend
 npm run test:e2e          # E2E tests (requires running API + Postgres)
 npm run test:integration  # integration tests
 ```
@@ -502,7 +502,7 @@ The mock server (`mock-server/`) serves static fixture data. If you've changed t
 
 ### `DATABASE_URL` connection refused
 
-Ensure PostgreSQL is running. If using Docker: `docker compose up postgres`. Check the connection string in `api/.env`.
+Ensure PostgreSQL is running. If using Docker: `docker compose up postgres`. Check the connection string in `backend/.env`.
 
 ---
 
@@ -556,7 +556,7 @@ stellar contract invoke \
   -- <function_name> [--arg value ...]
 
 # ── API ──────────────────────────────────────────────────────────────
-cd api
+cd backend
 
 npm run dev                # dev server with tsx watch
 npm run build              # compile TypeScript

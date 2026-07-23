@@ -22,7 +22,7 @@ Signature must be base64-encoded raw signature bytes.
 ## Run locally
 
 ```bash
-cd api
+cd backend
 npm install
 npm run dev
 ```
@@ -30,6 +30,6 @@ npm run dev
 ## E2E tests
 
 ```bash
-cd api
+cd backend
 npm run test:e2e
 ```

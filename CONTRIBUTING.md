@@ -106,7 +106,7 @@ npm run build
 
 **API (optional):**
 ```bash
-cd api
+cd backend
 npm ci
 # Requires PostgreSQL — see docker-compose.yml
 ```
