@@ -28,21 +28,26 @@ pub fn cast_vote(
     if mechanism == VotingMechanism::Quadratic {
         // Default 1 vote per cast_vote call in QV mode; credits must be pre-allocated.
         let record = quadratic::cast_qv_vote(env, reviewer, grant.id, milestone.idx, 1, approve)?;
-        let quorum = quadratic::is_approved_qv(env, grant.id, milestone.idx)
-            || quadratic::tally_votes(env, grant.id, milestone.idx).1
-                > quadratic::tally_votes(env, grant.id, milestone.idx).0;
-        let (for_v, _) = quadratic::tally_votes(env, grant.id, milestone.idx);
+        let (for_v, against_v) = quadratic::tally_votes(env, grant.id, milestone.idx);
+        let total_participation = for_v.saturating_add(against_v);
+
+        // Require both participation quorum (>50% of reviewers) and approval (>50% of votes)
+        let participation_quorum = total_participation > 0
+            && total_participation * 2 > milestone.reviewer_count_snapshot;
+        let approval = total_participation > 0 && for_v * 2 > total_participation;
+        let vote_finalized = participation_quorum && approval;
+
         let result = VoteResult {
-            approved: approve && quorum,
-            quorum_reached: quorum,
+            approved: approve && vote_finalized,
+            quorum_reached: vote_finalized,
             approval_pct: record.votes_cast,
         };
-        if quorum {
-            let approved = quadratic::is_approved_qv(env, grant.id, milestone.idx);
+
+        if vote_finalized {
             finalize_milestone(
                 milestone,
                 &VoteResult {
-                    approved,
+                    approved: approval,
                     quorum_reached: true,
                     approval_pct: for_v,
                 },
@@ -79,9 +84,9 @@ pub fn cast_vote(
     let reputation = Storage::get_reviewer_reputation(env, reviewer.clone());
     milestone.votes.set(reviewer.clone(), approve);
     if approve {
-        milestone.approvals += reputation;
+        milestone.approvals = milestone.approvals.saturating_add(reputation);
     } else {
-        milestone.rejections += reputation;
+        milestone.rejections = milestone.rejections.saturating_add(reputation);
     }
 
     // Use the snapshotted reviewer count from submission time to prevent
