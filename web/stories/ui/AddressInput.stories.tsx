@@ -11,7 +11,7 @@ export default meta;
 type Story = StoryObj<typeof AddressInput>;
 
 export const Empty: Story = {
-  args: { label: "Recipient Address", onChange: () => {} },
+  args: { value: "", label: "Recipient Address", onChange: () => {} },
 };
 
 export const Valid: Story = {

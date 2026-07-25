@@ -16,8 +16,8 @@ export default meta;
 
 type Story = StoryObj<typeof StatusDot>;
 
-export const Active: Story = { args: { status: "active" } };
-export const Inactive: Story = { args: { status: "inactive" } };
-export const Pending: Story = { args: { status: "pending" } };
-export const Success: Story = { args: { status: "success" } };
-export const Danger: Story = { args: { status: "danger" } };
+export const Active: Story = { args: { status: "active", label: "Active" } };
+export const Inactive: Story = { args: { status: "inactive", label: "Inactive" } };
+export const Pending: Story = { args: { status: "pending", label: "Pending" } };
+export const Success: Story = { args: { status: "success", label: "Success" } };
+export const Danger: Story = { args: { status: "danger", label: "Danger" } };
