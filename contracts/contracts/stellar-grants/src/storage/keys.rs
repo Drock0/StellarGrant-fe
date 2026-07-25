@@ -195,6 +195,15 @@ pub enum GrantTimerKey {
     Timers(u64),
 }
 
+#[contracttype]
+#[derive(Clone)]
+pub enum BountyKey {
+    Counter,
+    Data(u64),
+    Submission(u64, Address),
+    Submitters(u64),
+}
+
 // ── Structured DataKey ────────────────────────────────────────────────────────
 
 #[contracttype]
@@ -215,6 +224,7 @@ pub enum DataKey {
     ConditionalRelease(ConditionalReleaseKey),
     AutoApprove(AutoApproveKey),
     GrantTimer(GrantTimerKey),
+    Bounty(BountyKey),
     Matching(MatchingKey),
     Provenance(ProvenanceKey),
     ReviewerReward(ReviewerRewardKey),

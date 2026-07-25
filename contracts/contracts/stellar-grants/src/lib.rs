@@ -27,6 +27,7 @@ mod audit;
 mod auto_approve;
 mod badge;
 mod batch_read;
+mod bounty;
 mod checklist;
 mod circuit_breaker;
 mod clawback;
@@ -113,7 +114,7 @@ pub use types::{
     AcceptanceCriteria, Amendment, AmendmentStatus, AnalyticsSnapshot,
     Arbiter, ArbiterVote, ArbitrationCase, AuditAction,
     AuditEntry, AutoApproveConfig, AutoApproveRecord, BatchResult,
-    BondClaim, BondStatus, BreakerState, CategoryStats,
+    BondClaim, BondStatus, BountyGrant, BountyStatus, BountySubmission, BreakerState, CategoryStats,
     ChecklistSubmission, ClawbackRequest, ClawbackStatus, CollateralDeposit,
     CollateralRequirement, CollateralStatus, ComplianceAttestation, ComplianceLevel,
     ComplianceStatus, ConditionResult, ContractVersion, ContributionType,
@@ -521,10 +522,18 @@ impl StellarGrantsContract {
                         VerificationLevel::FullKyc,
                     )?;
                 }
+                // Deduct protocol fee (split across reviewer reward pool,
+                // revenue-share pool, and treasury) before passing the net
+                // amount to the grant recipient or split recipients.
+                let net_amount = fees::deduct_and_split_fee(
+                    env,
+                    &grant.token,
+                    ms.amount,
+                )?;
                 if split_payment::has_split(env, grant_id, idx) {
-                    split_payment::execute_split(env, grant_id, idx, ms.amount)?;
+                    split_payment::execute_split(env, grant_id, idx, net_amount)?;
                 } else {
-                    owner_amount = owner_amount.saturating_add(ms.amount);
+                    owner_amount = owner_amount.saturating_add(net_amount);
                 }
             }
             if owner_amount > 0 {
@@ -1874,6 +1883,92 @@ impl StellarGrantsContract {
         address: Address,
     ) -> Option<VerificationAttestation> {
         contributor_verification::get_attestation(&env, &address)
+    }
+
+    // ── Issue #533: Bounty-Mode Grant Entry Points ───────────────────────────
+
+    pub fn create_bounty(
+        env: Env,
+        owner: Address,
+        title: String,
+        description: String,
+        token: Address,
+        prize_amount: i128,
+        submission_window_ledgers: u32,
+    ) -> Result<u64, ContractError> {
+        owner.require_auth();
+        circuit_breaker::require_open(&env, ProtocolModule::Bounty)?;
+        let id = bounty::create_bounty(
+            &env,
+            &owner,
+            title,
+            description,
+            &token,
+            prize_amount,
+            submission_window_ledgers,
+        )?;
+        metrics::increment(&env, MetricField::BountiesCreated, 1);
+        metrics::update_token_locked(&env, &token, prize_amount);
+        Ok(id)
+    }
+
+    pub fn submit_bounty_solution(
+        env: Env,
+        bounty_id: u64,
+        submitter: Address,
+        proof_url: String,
+    ) -> Result<(), ContractError> {
+        submitter.require_auth();
+        bounty::submit_solution(&env, bounty_id, &submitter, proof_url)
+    }
+
+    pub fn start_bounty_review(
+        env: Env,
+        caller: Address,
+        bounty_id: u64,
+    ) -> Result<(), ContractError> {
+        caller.require_auth();
+        bounty::start_review(&env, &caller, bounty_id)
+    }
+
+    pub fn select_bounty_winner(
+        env: Env,
+        caller: Address,
+        bounty_id: u64,
+        winner: Address,
+    ) -> Result<(), ContractError> {
+        caller.require_auth();
+        bounty::select_winner(&env, &caller, bounty_id, &winner)?;
+        metrics::increment(&env, MetricField::BountiesAwarded, 1);
+        let bounty = bounty::get_bounty(&env, bounty_id)
+            .ok_or(ContractError::BountyNotFound)?;
+        metrics::update_token_locked(&env, &bounty.token, -bounty.prize_amount);
+        Ok(())
+    }
+
+    pub fn cancel_bounty(
+        env: Env,
+        caller: Address,
+        bounty_id: u64,
+    ) -> Result<(), ContractError> {
+        caller.require_auth();
+        bounty::cancel_bounty(&env, &caller, bounty_id)
+    }
+
+    pub fn get_bounty(env: Env, bounty_id: u64) -> Option<BountyGrant> {
+        bounty::get_bounty(&env, bounty_id)
+    }
+
+    pub fn get_bounty_submission(
+        env: Env,
+        bounty_id: u64,
+        submitter: Address,
+    ) -> Option<BountySubmission> {
+        bounty::get_submission(&env, bounty_id, &submitter)
+    }
+
+    pub fn list_bounty_submitters(env: Env, bounty_id: u64) -> Vec<Address> {
+        bounty::list_submitters(&env, bounty_id)
     }
 
     // ── Issue #517: Protocol Fee Management Entry Points ─────────────────────

@@ -1,11 +1,11 @@
 use super::keys::{
-    ArbitrationKey, AutoApproveKey, BondKey, CollateralKey, ConditionalReleaseKey, CrowdfundKey,
-    DataKey, EscrowKey, GrantKey, GrantTimerKey, InsuranceKey, MilestoneKey, UserKey, VotingKey,
-    WaitlistKey,
+    ArbitrationKey, AutoApproveKey, BondKey, BountyKey, CollateralKey, ConditionalReleaseKey,
+    CrowdfundKey, DataKey, EscrowKey, GrantKey, GrantTimerKey, InsuranceKey, MilestoneKey, UserKey,
+    VotingKey, WaitlistKey,
 };
 use crate::types::{
     AcceptanceCriteria, Amendment, AnalyticsSnapshot, AuditEntry, AutoApproveConfig,
-    AutoApproveRecord, BreakerState, ChecklistSubmission,
+    AutoApproveRecord, BountyGrant, BountySubmission, BreakerState, ChecklistSubmission,
     ClawbackRequest, ComplianceAttestation, ContractError, ContractVersion,
     ContributorProfile, CrowdfundCampaign, CrowdfundPledge, DexConfig, Dispute, EscrowAccount,
     EscrowState, EvidenceSchema, FunderLedger, Grant, GrantCategory, GrantTag, GrantVersion,
@@ -2188,6 +2188,69 @@ impl Storage {
     pub fn set_waitlist_entries(env: &Env, grant_id: u64, entries: &Vec<WaitlistEntry>) {
         let key = DataKey::Waitlist(WaitlistKey::Entries(grant_id));
         env.storage().persistent().set(&key, entries);
+        Self::bump(env, &key);
+    }
+
+    // ── Issue #533: Bounty-Mode Grants ───────────────────────────────────────
+
+    pub fn next_bounty_id(env: &Env) -> u64 {
+        let key = DataKey::Bounty(BountyKey::Counter);
+        let mut id: u64 = env.storage().persistent().get(&key).unwrap_or(0);
+        id += 1;
+        env.storage().persistent().set(&key, &id);
+        id
+    }
+
+    pub fn get_bounty(env: &Env, bounty_id: u64) -> Option<BountyGrant> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Bounty(BountyKey::Data(bounty_id)))
+    }
+
+    pub fn set_bounty(env: &Env, bounty: &BountyGrant) {
+        let key = DataKey::Bounty(BountyKey::Data(bounty.id));
+        env.storage().persistent().set(&key, bounty);
+        Self::bump(env, &key);
+    }
+
+    pub fn get_bounty_submission(
+        env: &Env,
+        bounty_id: u64,
+        submitter: &Address,
+    ) -> Option<BountySubmission> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Bounty(BountyKey::Submission(
+                bounty_id,
+                submitter.clone(),
+            )))
+    }
+
+    pub fn set_bounty_submission(env: &Env, submission: &BountySubmission) {
+        let key = DataKey::Bounty(BountyKey::Submission(
+            submission.bounty_id,
+            submission.submitter.clone(),
+        ));
+        env.storage().persistent().set(&key, submission);
+        Self::bump(env, &key);
+    }
+
+    pub fn get_bounty_submitters(env: &Env, bounty_id: u64) -> Vec<Address> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Bounty(BountyKey::Submitters(bounty_id)))
+            .unwrap_or_else(|| Vec::new(env))
+    }
+
+    pub fn add_bounty_submitter(env: &Env, bounty_id: u64, submitter: &Address) {
+        let key = DataKey::Bounty(BountyKey::Submitters(bounty_id));
+        let mut submitters: Vec<Address> = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .unwrap_or_else(|| Vec::new(env));
+        submitters.push_back(submitter.clone());
+        env.storage().persistent().set(&key, &submitters);
         Self::bump(env, &key);
     }
 }
