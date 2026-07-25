@@ -15,7 +15,7 @@ export const Default: Story = {
 };
 
 export const WithValue: Story = {
-  args: { placeholder: "Search grants…", defaultValue: "AI Safety" },
+  args: { placeholder: "Search grants…", value: "AI Safety" },
 };
 
 export const Disabled: Story = {

@@ -54,7 +54,7 @@ pub fn grant_detail(env: &Env, grant_id: u64) -> Result<GrantDetailView, Contrac
         } else {
             milestones.push_back(Milestone {
                 idx,
-                description: soroban_sdk::String::from_str(&env, ""),
+                description: soroban_sdk::String::from_str(env, ""),
                 amount: grant.milestone_amount,
                 state: MilestoneState::Pending,
                 votes: soroban_sdk::Map::new(env),
