@@ -1,7 +1,7 @@
 use crate::errors::ContractError;
 use crate::storage::keys::{DataKey, GrantKey};
 use crate::storage::Storage;
-use crate::types::{BatchResult, GrantPortfolio, GrantStatus, PortfolioFilter, PortfolioStats};
+use crate::types::{MultiGrantBatchResult, GrantPortfolio, GrantStatus, PortfolioFilter, PortfolioStats};
 use soroban_sdk::{Address, Env, Vec};
 
 /// Return portfolio stats for an owner address.
@@ -143,8 +143,8 @@ pub fn batch_add_reviewer(
     owner: &Address,
     grant_ids: Vec<u64>,
     reviewer: &Address,
-) -> Result<BatchResult, ContractError> {
-    let mut result = BatchResult {
+) -> Result<MultiGrantBatchResult, ContractError> {
+    let mut result = MultiGrantBatchResult {
         successful: 0,
         failed: 0,
         total: grant_ids.len() as u32,
@@ -172,8 +172,8 @@ pub fn batch_remove_reviewer(
     owner: &Address,
     grant_ids: Vec<u64>,
     reviewer: &Address,
-) -> Result<BatchResult, ContractError> {
-    let mut result = BatchResult {
+) -> Result<MultiGrantBatchResult, ContractError> {
+    let mut result = MultiGrantBatchResult {
         successful: 0,
         failed: 0,
         total: grant_ids.len() as u32,
@@ -409,7 +409,7 @@ mod tests {
 
     #[test]
     fn test_batch_result_structure() {
-        let result = BatchResult {
+        let result = MultiGrantBatchResult {
             successful: 5,
             failed: 2,
             total: 7,
