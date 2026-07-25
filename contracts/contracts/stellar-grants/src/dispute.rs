@@ -12,6 +12,13 @@ pub fn raise_dispute(
     caller: &Address,
     reason: String,
 ) -> Result<Dispute, ContractError> {
+    if grant.status != crate::types::GrantStatus::Active {
+        return Err(ContractError::InvalidState);
+    }
+    if milestone_idx >= grant.total_milestones {
+        return Err(ContractError::MilestoneIndexOutOfBounds);
+    }
+
     let is_owner = grant.owner == *caller;
     let is_reviewer = grant.reviewers.contains(caller.clone());
     if !(is_owner || is_reviewer) {
@@ -21,6 +28,8 @@ pub fn raise_dispute(
     if Storage::get_dispute(env, grant.id, milestone_idx).is_some() {
         return Err(ContractError::InvalidState);
     }
+
+    crate::escrow::lock(env, grant.id)?;
 
     let dispute = Dispute {
         grant_id: grant.id,
@@ -145,56 +154,24 @@ pub fn resolve_dispute(
 
     if outcome == DisputeStatus::ResolvedForContributor {
         if let Some(milestone) = Storage::get_milestone(env, grant_id, milestone_idx) {
-            let balance = grant.escrow_balance;
-            if balance >= milestone.amount {
-                token::Client::new(env, &grant.token).transfer(
-                    &env.current_contract_address(),
-                    &grant.owner,
-                    &milestone.amount,
-                );
-                grant.escrow_balance = balance
-                    .checked_sub(milestone.amount)
-                    .ok_or(ContractError::InvalidInput)?;
-            }
+            crate::escrow::release(env, grant_id, &grant.owner, milestone.amount)?;
         }
     } else if let Some(milestone) = Storage::get_milestone(env, grant_id, milestone_idx) {
-        let balance = grant.escrow_balance;
-        if balance >= milestone.amount && !grant.funders.is_empty() {
-            let mut total_contributed: i128 = 0;
-            for fund in grant.funders.iter() {
-                total_contributed = total_contributed.saturating_add(fund.amount);
-            }
-            if total_contributed > 0 {
-                let tok_client = token::Client::new(env, &grant.token);
-                let mut distributed: i128 = 0;
-                let funders_len = grant.funders.len();
-                for i in 0..funders_len {
-                    let fund = grant.funders.get(i).ok_or(ContractError::InvalidInput)?;
-                    let is_last = i + 1 == funders_len;
-                    let share = if is_last {
-                        milestone.amount - distributed
-                    } else {
-                        fund.amount
-                            .checked_mul(milestone.amount)
-                            .ok_or(ContractError::InvalidInput)?
-                            .checked_div(total_contributed)
-                            .ok_or(ContractError::InvalidInput)?
-                    };
-                    if share > 0 {
-                        tok_client.transfer(&env.current_contract_address(), &fund.funder, &share);
-                        distributed = distributed.saturating_add(share);
-                    }
-                }
-                grant.escrow_balance = balance
-                    .checked_sub(distributed)
-                    .ok_or(ContractError::InvalidInput)?;
-            }
+        if !grant.funders.is_empty() {
+            crate::escrow::release_to_funders(env, grant_id, &grant.funders, milestone.amount)?;
         }
     }
+
+    crate::escrow::unlock(env, grant_id)?;
 
     dispute.status = outcome.clone();
     dispute.resolved_at = Some(env.ledger().timestamp());
     Storage::set_dispute(env, grant_id, milestone_idx, dispute);
+
+    // Reload grant to get updated escrow_balance from escrow operations
+    if let Some(updated_grant) = Storage::get_grant(env, grant_id) {
+        *grant = updated_grant;
+    }
 
     let for_contributor = outcome == DisputeStatus::ResolvedForContributor;
     Events::emit_dispute_resolved(env, grant_id, milestone_idx, for_contributor);
