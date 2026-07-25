@@ -182,6 +182,7 @@ mod tests {
         let admin = Address::generate(&env);
         let owner = Address::generate(&env);
         let contributor = Address::generate(&env);
+        Storage::set_global_admin(&env, &admin);
         (env, admin, owner, contributor)
     }
 
@@ -233,7 +234,7 @@ mod tests {
 
     #[test]
     fn test_release_before_expiry() {
-        let (env, _admin, owner, contributor) = setup();
+        let (env, admin, owner, _contributor) = setup();
         env.ledger().set(soroban_sdk::testutils::LedgerInfo {
             timestamp: 1000,
             protocol_version: 21,
@@ -248,15 +249,15 @@ mod tests {
         attach_lockup(&env, &owner, 1, 0, 604800).unwrap();
 
         let fake_token = Address::generate(&env);
-        lock_payout(&env, 1, 0, &contributor, &fake_token, 500).unwrap();
+        lock_payout(&env, 1, 0, &admin, &fake_token, 500).unwrap();
 
-        let result = release(&env, &contributor, 1, 0);
+        let result = release(&env, &admin, 1, 0);
         assert_eq!(result, Err(ContractError::NotYetUnlocked));
     }
 
     #[test]
     fn test_release_after_expiry() {
-        let (env, _admin, owner, contributor) = setup();
+        let (env, admin, owner, _contributor) = setup();
         env.ledger().set(soroban_sdk::testutils::LedgerInfo {
             timestamp: 1000,
             protocol_version: 21,
@@ -271,7 +272,7 @@ mod tests {
         attach_lockup(&env, &owner, 1, 0, 100).unwrap();
 
         let fake_token = Address::generate(&env);
-        lock_payout(&env, 1, 0, &contributor, &fake_token, 500).unwrap();
+        lock_payout(&env, 1, 0, &admin, &fake_token, 500).unwrap();
 
         env.ledger().set(soroban_sdk::testutils::LedgerInfo {
             timestamp: 1200,
@@ -284,7 +285,7 @@ mod tests {
             max_entry_ttl: 1_000_000,
         });
 
-        let amount = release(&env, &contributor, 1, 0).unwrap();
+        let amount = release(&env, &admin, 1, 0).unwrap();
         assert_eq!(amount, 500);
 
         let record = get_lockup(&env, 1, 0).unwrap();
@@ -344,5 +345,26 @@ mod tests {
         });
 
         assert!(is_unlocked(&env, 1, 0));
+    }
+
+    #[test]
+    fn test_lock_payout_unauthorized() {
+        let (env, admin, owner, contributor) = setup();
+        env.ledger().set(soroban_sdk::testutils::LedgerInfo {
+            timestamp: 1000,
+            protocol_version: 21,
+            sequence_number: 100,
+            base_reserve: 10,
+            network_id: Default::default(),
+            min_temp_entry_ttl: 100_000,
+            min_persistent_entry_ttl: 100_000,
+            max_entry_ttl: 1_000_000,
+        });
+
+        attach_lockup(&env, &owner, 1, 0, 604800).unwrap();
+
+        let fake_token = Address::generate(&env);
+        let result = lock_payout(&env, 1, 0, &contributor, &fake_token, 500);
+        assert_eq!(result, Err(ContractError::Unauthorized));
     }
 }
