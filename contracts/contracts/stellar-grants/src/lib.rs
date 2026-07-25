@@ -112,7 +112,7 @@ pub use events::Events;
 pub use storage::Storage;
 pub use types::{
     AcceptanceCriteria, Amendment, AmendmentStatus, AnalyticsSnapshot, Arbiter, ArbiterVote,
-    ArbitrationCase, AuditAction, AuditEntry, AutoApproveConfig, AutoApproveRecord, BadgeType,
+    ArbitrationCase, AuditAction, AuditEntry, AutoApproveConfig, AutoApproveRecord,
     BatchItemResult, BatchMilestoneVote, BatchResult, BondClaim, BondStatus, BountyGrant,
     BountyStatus, BountySubmission, BreakerState, BridgeRelayer, CategoryStats, ChainId,
     ChecklistSubmission, ClawbackRequest, ClawbackStatus, CollateralDeposit, CollateralRequirement,
@@ -516,6 +516,11 @@ impl StellarGrantsContract {
                 // revenue-share pool, and treasury) before passing the net
                 // amount to the grant recipient or split recipients.
                 let net_amount = fees::deduct_and_split_fee(env, &grant.token, ms.amount)?;
+                // Issue #569: a payout is the qualifying first action for a
+                // referred contributor — credit their referrer out of the fee
+                // this payout generated. No-op after the first paid reward.
+                let fee_amount = math::safe_sub(ms.amount, net_amount)?;
+                referral::trigger_reward(env, &grant.owner, &grant.token, fee_amount)?;
                 if split_payment::has_split(env, grant_id, idx) {
                     split_payment::execute_split(env, grant_id, idx, net_amount)?;
                 } else {
@@ -615,7 +620,7 @@ impl StellarGrantsContract {
             soroban_sdk::Vec::new(&env),
         );
 
-        reviewer_reward::record_participation(&env, &reviewer, grant_id, false);
+        reviewer_reward::record_participation(&env, &reviewer, grant_id, milestone_idx, false);
 
         if result.quorum_reached {
             if result.approved {
@@ -2352,6 +2357,42 @@ impl StellarGrantsContract {
         reviewer: Address,
     ) -> Option<ReviewerRequest> {
         reviewer_pool::get_request(&env, grant_id, &reviewer)
+    }
+
+    /// Find up to `limit` reviewers registered under an expertise tag.
+    pub fn reviewer_find_by_tag(env: Env, tag: String, limit: u32) -> Vec<ReviewerProfile> {
+        reviewer_pool::find_by_tag(&env, &tag, limit)
+    }
+
+    // ── Issue #611: Reviewer SLA enforcement ────────────────────────────────
+
+    /// Return a reviewer's SLA record for a milestone, if one was registered.
+    pub fn reviewer_get_sla(
+        env: Env,
+        reviewer: Address,
+        grant_id: u64,
+        milestone_idx: u32,
+    ) -> Option<reviewer_sla::ReviewerSlaRecord> {
+        reviewer_sla::get_sla(
+            &env,
+            &reviewer,
+            reviewer_sla::milestone_sla_id(grant_id, milestone_idx),
+        )
+    }
+
+    /// Check whether a reviewer has breached their SLA for a milestone,
+    /// persisting the breach on first detection. Returns true if breached.
+    pub fn check_reviewer_sla(
+        env: Env,
+        reviewer: Address,
+        grant_id: u64,
+        milestone_idx: u32,
+    ) -> bool {
+        reviewer_sla::check_and_mark_breach(
+            &env,
+            &reviewer,
+            reviewer_sla::milestone_sla_id(grant_id, milestone_idx),
+        )
     }
 
     // ── Issue #571: Taxonomy, Category, and Tag System for Grants ──────────
