@@ -12,7 +12,7 @@ pub fn call_hook_receiver(
     payload: soroban_sdk::Bytes,
 ) -> bool {
     let client = HookReceiverClient::new(env, contract);
-    client.on_hook(contract, &event_type, &payload).is_ok()
+    client.try_on_hook(&event_type, &payload).is_ok()
 }
 
 /// Read a price from an oracle contract using the typed interface.
@@ -24,6 +24,7 @@ pub fn read_oracle_price(
     let client = OracleClient::new(env, oracle_contract);
     client
         .try_price(token)
+        .map_err(|_| ContractError::InvalidInput)?
         .map_err(|_| ContractError::InvalidInput)
 }
 

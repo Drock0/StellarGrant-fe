@@ -43,6 +43,7 @@ fn fetch_oracle_price(
     let client = OracleClient::new(env, oracle);
     client
         .try_price(token)
+        .map_err(|_| ContractError::InvalidInput)?
         .map_err(|_| ContractError::InvalidInput)
 }
 

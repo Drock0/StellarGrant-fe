@@ -9,7 +9,6 @@
     unused_variables,
     clippy::clone_on_copy,
     clippy::len_zero,
-    clippy::manual_checked_ops,
     clippy::manual_range_contains,
     clippy::manual_saturating_arithmetic,
     clippy::match_like_matches_macro,
@@ -112,7 +111,7 @@ pub use events::Events;
 pub use storage::Storage;
 pub use types::{
     AcceptanceCriteria, Amendment, AmendmentStatus, AnalyticsSnapshot, Arbiter, ArbiterVote,
-    ArbitrationCase, AuditAction, AuditEntry, AutoApproveConfig, AutoApproveRecord,
+    ArbitrationCase, AuditAction, AuditEntry, AutoApproveConfig, AutoApproveRecord, BadgeType,
     BatchItemResult, BatchMilestoneVote, BatchResult, BondClaim, BondStatus, BountyGrant,
     BountyStatus, BountySubmission, BreakerState, BridgeRelayer, CategoryStats, ChainId,
     ChecklistSubmission, ClawbackRequest, ClawbackStatus, CollateralDeposit, CollateralRequirement,
@@ -1144,7 +1143,7 @@ impl StellarGrantsContract {
         owner: Address,
         grant_ids: Vec<u64>,
         reviewer: Address,
-    ) -> Result<BatchResult, ContractError> {
+    ) -> Result<MultiGrantBatchResult, ContractError> {
         owner.require_auth();
         multi_grant::batch_add_reviewer(&env, &owner, grant_ids, &reviewer)
     }
@@ -1155,7 +1154,7 @@ impl StellarGrantsContract {
         owner: Address,
         grant_ids: Vec<u64>,
         reviewer: Address,
-    ) -> Result<BatchResult, ContractError> {
+    ) -> Result<MultiGrantBatchResult, ContractError> {
         owner.require_auth();
         multi_grant::batch_remove_reviewer(&env, &owner, grant_ids, &reviewer)
     }
