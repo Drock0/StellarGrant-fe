@@ -108,7 +108,7 @@ proptest! {
 
         let mut total_distributed = 0i128;
         for &bps in shares.iter() {
-            let share = stellar_grants::math::proportional_share(total, 10_000, bps as i128).unwrap();
+            let share = stellar_grants::math::proportional_share(total, bps).unwrap();
             prop_assert!(share <= total);
             prop_assert!(share >= 0);
             total_distributed += share;
@@ -130,7 +130,7 @@ proptest! {
             let _ = stellar_grants::math::basis_points_of(a, bps);
         }));
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            let _ = stellar_grants::math::proportional_share(a, b, 10_000);
+            let _ = stellar_grants::math::proportional_share(a, bps);
         }));
         let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let _ = stellar_grants::math::split_evenly(a, n);
