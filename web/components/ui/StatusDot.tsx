@@ -3,7 +3,7 @@
 import React from "react";
 
 interface StatusDotProps {
-  status: "active" | "pending" | "verified" | "rejected";
+  status: "active" | "pending" | "verified" | "rejected" | "inactive" | "success" | "danger";
   label: string;
 }
 
@@ -13,6 +13,9 @@ export const StatusDot = ({ status, label }: StatusDotProps) => {
     pending: "bg-warning",
     verified: "bg-accent-secondary",
     rejected: "bg-danger",
+    inactive: "bg-gray-500",
+    success: "bg-success",
+    danger: "bg-danger",
   };
 
   return (

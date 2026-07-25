@@ -11,13 +11,13 @@ export default meta;
 type Story = StoryObj<typeof StatBadge>;
 
 export const Reputation: Story = {
-  args: { label: "Reputation", value: "94" },
+  args: { label: "Reputation", value: 94 },
 };
 
 export const Grants: Story = {
-  args: { label: "Grants Completed", value: "12" },
+  args: { label: "Grants Completed", value: 12 },
 };
 
 export const Earned: Story = {
-  args: { label: "Total Earned", value: "45,000 XLM" },
+  args: { label: "Total Earned", value: 45000, suffix: " XLM" },
 };

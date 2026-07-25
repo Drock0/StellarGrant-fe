@@ -12,6 +12,7 @@ interface ButtonProps {
   href?: string;
   onClick?: () => void;
   className?: string;
+  disabled?: boolean;
 }
 
 export const Button = ({
@@ -20,6 +21,7 @@ export const Button = ({
   href,
   onClick,
   className = "",
+  disabled = false,
 }: ButtonProps) => {
   const baseStyles = "inline-flex items-center justify-center px-8 py-3 font-orbitron text-sm font-bold transition-all duration-300 rounded-none border-0 uppercase tracking-wider";
   
@@ -49,6 +51,7 @@ export const Button = ({
       className={combinedClassName}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
+      disabled={disabled}
     >
       {children}
     </motion.button>

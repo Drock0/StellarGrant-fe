@@ -44,10 +44,17 @@
               "key": {
                 "vec": [
                   {
-                    "symbol": "EscrowAccount"
+                    "symbol": "Escrow"
                   },
                   {
-                    "u64": "1"
+                    "vec": [
+                      {
+                        "symbol": "Account"
+                      },
+                      {
+                        "u64": "1"
+                      }
+                    ]
                   }
                 ]
               },
@@ -147,7 +154,14 @@
                     "symbol": "Grant"
                   },
                   {
-                    "u64": "1"
+                    "vec": [
+                      {
+                        "symbol": "Data"
+                      },
+                      {
+                        "u64": "1"
+                      }
+                    ]
                   }
                 ]
               },
@@ -300,13 +314,20 @@
               "key": {
                 "vec": [
                   {
-                    "symbol": "MilestoneChecklist"
+                    "symbol": "Milestone"
                   },
                   {
-                    "u64": "1"
-                  },
-                  {
-                    "u32": 0
+                    "vec": [
+                      {
+                        "symbol": "Checklist"
+                      },
+                      {
+                        "u64": "1"
+                      },
+                      {
+                        "u32": 0
+                      }
+                    ]
                   }
                 ]
               },

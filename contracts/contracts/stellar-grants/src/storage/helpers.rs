@@ -1,23 +1,22 @@
 use super::keys::{
-    ArbitrationKey, AutoApproveKey, BondKey, CollateralKey, ConditionalReleaseKey, CrowdfundKey,
-    DataKey, EscrowKey, GrantKey, GrantTimerKey, InsuranceKey, MilestoneKey, UserKey, VotingKey,
-    WaitlistKey,
+    ArbitrationKey, AutoApproveKey, BondKey, BountyKey, CollateralKey, ConditionalReleaseKey,
+    CrowdfundKey, DataKey, EscrowKey, GrantKey, GrantTimerKey, InsuranceKey, MilestoneKey, UserKey,
+    VotingKey, WaitlistKey,
 };
 use crate::types::{
     AcceptanceCriteria, Amendment, AnalyticsSnapshot, AuditEntry, AutoApproveConfig,
-    AutoApproveRecord, BreakerState, ChecklistSubmission,
-    ClawbackRequest, ComplianceAttestation, ContractError, ContractVersion,
-    ContributorProfile, CrowdfundCampaign, CrowdfundPledge, DexConfig, Dispute, EscrowAccount,
-    EscrowState, EvidenceSchema, FunderLedger, Grant, GrantCategory, GrantTag, GrantVersion,
-    HookEvent, HookRegistration, InsuranceClaim, InsurancePolicy, Invoice, LicenseRecord,
-    MerkleCommitment, MigrationRecord, Milestone, MilestoneDag, MilestoneNft, MultisigProposal,
-    OracleConfig, ParamRecord, PauseRecord, PaymentSplit, PaymentStream, ProtocolConfig,
-    ProtocolMetrics, ProtocolModule, PublicReview, QuadraticVoteRecord, RateLimitAction,
-    RateLimitRecord, RegistryEntry, RelayAllowance, RelayConfig, ReleaseCondition, RenewalProposal,
-    RevenueEpoch, ReviewerProfile,
-    ReviewerRequest, Role, RoleAssignment, RollingWindow, ScoringRubric, StakerEpochRecord, StructuredEvidence,
-    SyndicateGrant, SyndicateMember, TimerRecord, TokenMetric, TransferProposal,
-    VerificationAttestation, VoiceCredits, VotingMechanism,
+    AutoApproveRecord, BountyGrant, BountySubmission, BreakerState, ChecklistSubmission,
+    ClawbackRequest, ComplianceAttestation, ContractError, ContractVersion, ContributorProfile,
+    CrowdfundCampaign, CrowdfundPledge, DexConfig, Dispute, EscrowAccount, EscrowState,
+    EvidenceSchema, FunderLedger, Grant, GrantCategory, GrantTag, GrantVersion, HookEvent,
+    HookRegistration, InsuranceClaim, InsurancePolicy, Invoice, LicenseRecord, MerkleCommitment,
+    MigrationRecord, Milestone, MilestoneDag, MilestoneNft, MultisigProposal, OracleConfig,
+    ParamRecord, PauseRecord, PaymentSplit, PaymentStream, ProtocolConfig, ProtocolMetrics,
+    ProtocolModule, PublicReview, QuadraticVoteRecord, RateLimitAction, RateLimitRecord,
+    RegistryEntry, RelayAllowance, RelayConfig, ReleaseCondition, RenewalProposal, RevenueEpoch,
+    ReviewerProfile, ReviewerRequest, Role, RoleAssignment, RollingWindow, ScoringRubric,
+    StakerEpochRecord, StructuredEvidence, SyndicateGrant, SyndicateMember, TimerRecord,
+    TokenMetric, TransferProposal, VerificationAttestation, VoiceCredits, VotingMechanism,
     WaitlistConfig, WaitlistEntry,
 };
 use crate::types::{
@@ -591,9 +590,12 @@ impl Storage {
     }
 
     pub fn remove_clawback(env: &Env, grant_id: u64, milestone_idx: u32) {
-        env.storage().persistent().remove(&DataKey::Milestone(
-            MilestoneKey::Clawback(grant_id, milestone_idx),
-        ));
+        env.storage()
+            .persistent()
+            .remove(&DataKey::Milestone(MilestoneKey::Clawback(
+                grant_id,
+                milestone_idx,
+            )));
     }
 
     // ── Issue #516: ProtocolConfig ────────────────────────────────────────────
@@ -2107,10 +2109,8 @@ impl Storage {
         milestone_idx: u32,
         conditions: &Vec<ReleaseCondition>,
     ) {
-        let key = DataKey::ConditionalRelease(ConditionalReleaseKey::Conditions(
-            grant_id,
-            milestone_idx,
-        ));
+        let key =
+            DataKey::ConditionalRelease(ConditionalReleaseKey::Conditions(grant_id, milestone_idx));
         env.storage().persistent().set(&key, conditions);
         Self::bump(env, &key);
     }
@@ -2133,9 +2133,12 @@ impl Storage {
         grant_id: u64,
         milestone_idx: u32,
     ) -> Option<AutoApproveRecord> {
-        env.storage().persistent().get(&DataKey::AutoApprove(
-            AutoApproveKey::Record(grant_id, milestone_idx),
-        ))
+        env.storage()
+            .persistent()
+            .get(&DataKey::AutoApprove(AutoApproveKey::Record(
+                grant_id,
+                milestone_idx,
+            )))
     }
 
     pub fn set_auto_approve_record(
@@ -2188,6 +2191,69 @@ impl Storage {
     pub fn set_waitlist_entries(env: &Env, grant_id: u64, entries: &Vec<WaitlistEntry>) {
         let key = DataKey::Waitlist(WaitlistKey::Entries(grant_id));
         env.storage().persistent().set(&key, entries);
+        Self::bump(env, &key);
+    }
+
+    // ── Issue #533: Bounty-Mode Grants ───────────────────────────────────────
+
+    pub fn next_bounty_id(env: &Env) -> u64 {
+        let key = DataKey::Bounty(BountyKey::Counter);
+        let mut id: u64 = env.storage().persistent().get(&key).unwrap_or(0);
+        id += 1;
+        env.storage().persistent().set(&key, &id);
+        id
+    }
+
+    pub fn get_bounty(env: &Env, bounty_id: u64) -> Option<BountyGrant> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Bounty(BountyKey::Data(bounty_id)))
+    }
+
+    pub fn set_bounty(env: &Env, bounty: &BountyGrant) {
+        let key = DataKey::Bounty(BountyKey::Data(bounty.id));
+        env.storage().persistent().set(&key, bounty);
+        Self::bump(env, &key);
+    }
+
+    pub fn get_bounty_submission(
+        env: &Env,
+        bounty_id: u64,
+        submitter: &Address,
+    ) -> Option<BountySubmission> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Bounty(BountyKey::Submission(
+                bounty_id,
+                submitter.clone(),
+            )))
+    }
+
+    pub fn set_bounty_submission(env: &Env, submission: &BountySubmission) {
+        let key = DataKey::Bounty(BountyKey::Submission(
+            submission.bounty_id,
+            submission.submitter.clone(),
+        ));
+        env.storage().persistent().set(&key, submission);
+        Self::bump(env, &key);
+    }
+
+    pub fn get_bounty_submitters(env: &Env, bounty_id: u64) -> Vec<Address> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Bounty(BountyKey::Submitters(bounty_id)))
+            .unwrap_or_else(|| Vec::new(env))
+    }
+
+    pub fn add_bounty_submitter(env: &Env, bounty_id: u64, submitter: &Address) {
+        let key = DataKey::Bounty(BountyKey::Submitters(bounty_id));
+        let mut submitters: Vec<Address> = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .unwrap_or_else(|| Vec::new(env));
+        submitters.push_back(submitter.clone());
+        env.storage().persistent().set(&key, &submitters);
         Self::bump(env, &key);
     }
 }

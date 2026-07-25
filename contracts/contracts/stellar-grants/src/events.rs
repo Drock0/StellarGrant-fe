@@ -727,12 +727,7 @@ impl Events {
         event.publish(env);
     }
 
-    pub fn emit_clawback_approved(
-        env: &Env,
-        grant_id: u64,
-        milestone_idx: u32,
-        approver: Address,
-    ) {
+    pub fn emit_clawback_approved(env: &Env, grant_id: u64, milestone_idx: u32, approver: Address) {
         let event = ClawbackApproved {
             grant_id,
             milestone_idx,
@@ -1593,12 +1588,7 @@ impl Events {
 
     // ── Waitlist events ───────────────────────────────────────────────────────
 
-    pub fn emit_waitlist_joined(
-        env: &Env,
-        grant_id: u64,
-        applicant: Address,
-        position: u32,
-    ) {
+    pub fn emit_waitlist_joined(env: &Env, grant_id: u64, applicant: Address, position: u32) {
         let event = WaitlistJoined {
             grant_id,
             applicant,
@@ -1608,12 +1598,7 @@ impl Events {
         event.publish(env);
     }
 
-    pub fn emit_waitlist_promoted(
-        env: &Env,
-        grant_id: u64,
-        applicant: Address,
-        position: u32,
-    ) {
+    pub fn emit_waitlist_promoted(env: &Env, grant_id: u64, applicant: Address, position: u32) {
         let event = WaitlistPromoted {
             grant_id,
             applicant,
@@ -1623,11 +1608,7 @@ impl Events {
         event.publish(env);
     }
 
-    pub fn emit_waitlist_left(
-        env: &Env,
-        grant_id: u64,
-        applicant: Address,
-    ) {
+    pub fn emit_waitlist_left(env: &Env, grant_id: u64, applicant: Address) {
         let event = WaitlistLeft {
             grant_id,
             applicant,

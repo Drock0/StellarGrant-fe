@@ -11,13 +11,13 @@ export default meta;
 type Story = StoryObj<typeof SearchInput>;
 
 export const Default: Story = {
-  args: { placeholder: "Search grants…" },
+  args: { placeholder: "Search grants…", value: "", onChange: () => {} },
 };
 
 export const WithValue: Story = {
-  args: { placeholder: "Search grants…", defaultValue: "AI Safety" },
+  args: { placeholder: "Search grants…", value: "AI Safety", onChange: () => {} },
 };
 
 export const Disabled: Story = {
-  args: { placeholder: "Unavailable", disabled: true },
+  args: { placeholder: "Unavailable", disabled: true, value: "", onChange: () => {} },
 };

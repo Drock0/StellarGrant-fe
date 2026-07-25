@@ -189,6 +189,15 @@ mod tests {
     use super::*;
     use soroban_sdk::testutils::{Address as _, Ledger};
 
+    fn with_contract(env: &Env, f: impl FnOnce()) {
+        let contract_id = env.register(crate::StellarGrantsContract, ());
+        env.as_contract(&contract_id, f);
+    }
+
+    fn with_contract_id(env: &Env, contract_id: &Address, f: impl FnOnce()) {
+        env.as_contract(contract_id, f);
+    }
+
     fn make_bounty(env: &Env, owner: &Address, token: &Address) -> u64 {
         Storage::next_bounty_id(env);
         let id = 1u64;
@@ -212,114 +221,134 @@ mod tests {
     fn test_submit_solution_to_unknown_bounty_rejected() {
         let env = Env::default();
         env.mock_all_auths();
-        let submitter = Address::generate(&env);
-        let result = submit_solution(&env, 999, &submitter, String::from_str(&env, "proof"));
-        assert_eq!(result, Err(ContractError::BountyNotFound));
+        with_contract(&env, || {
+            let submitter = Address::generate(&env);
+            let result = submit_solution(&env, 999, &submitter, String::from_str(&env, "proof"));
+            assert_eq!(result, Err(ContractError::BountyNotFound));
+        });
     }
 
     #[test]
     fn test_submit_solution_twice_rejected() {
         let env = Env::default();
         env.mock_all_auths();
-        let owner = Address::generate(&env);
-        let token = Address::generate(&env);
-        let submitter = Address::generate(&env);
-        let id = make_bounty(&env, &owner, &token);
+        with_contract(&env, || {
+            let owner = Address::generate(&env);
+            let token = Address::generate(&env);
+            let submitter = Address::generate(&env);
+            let id = make_bounty(&env, &owner, &token);
 
-        submit_solution(&env, id, &submitter, String::from_str(&env, "proof1")).unwrap();
-        let result = submit_solution(&env, id, &submitter, String::from_str(&env, "proof2"));
-        assert_eq!(result, Err(ContractError::AlreadyVoted));
+            submit_solution(&env, id, &submitter, String::from_str(&env, "proof1")).unwrap();
+            let result = submit_solution(&env, id, &submitter, String::from_str(&env, "proof2"));
+            assert_eq!(result, Err(ContractError::AlreadyVoted));
+        });
     }
 
     #[test]
     fn test_submit_solution_after_deadline_rejected() {
         let env = Env::default();
         env.mock_all_auths();
-        let owner = Address::generate(&env);
-        let token = Address::generate(&env);
-        let submitter = Address::generate(&env);
-        let id = make_bounty(&env, &owner, &token);
+        let contract_id = env.register(crate::StellarGrantsContract, ());
+        let mut id = 0u64;
+        with_contract_id(&env, &contract_id, || {
+            let owner = Address::generate(&env);
+            let token = Address::generate(&env);
+            id = make_bounty(&env, &owner, &token);
+        });
 
         env.ledger().with_mut(|l| {
             l.timestamp += 10_000;
         });
 
-        let result = submit_solution(&env, id, &submitter, String::from_str(&env, "proof"));
-        assert_eq!(result, Err(ContractError::SubmissionWindowClosed));
+        with_contract_id(&env, &contract_id, || {
+            let submitter = Address::generate(&env);
+            let result = submit_solution(&env, id, &submitter, String::from_str(&env, "proof"));
+            assert_eq!(result, Err(ContractError::SubmissionWindowClosed));
+        });
     }
 
     #[test]
     fn test_select_winner_unauthorized_caller_rejected() {
         let env = Env::default();
         env.mock_all_auths();
-        let owner = Address::generate(&env);
-        let token = Address::generate(&env);
-        let stranger = Address::generate(&env);
-        let submitter = Address::generate(&env);
-        let id = make_bounty(&env, &owner, &token);
-        submit_solution(&env, id, &submitter, String::from_str(&env, "proof")).unwrap();
+        with_contract(&env, || {
+            let owner = Address::generate(&env);
+            let token = Address::generate(&env);
+            let stranger = Address::generate(&env);
+            let submitter = Address::generate(&env);
+            let id = make_bounty(&env, &owner, &token);
+            submit_solution(&env, id, &submitter, String::from_str(&env, "proof")).unwrap();
 
-        let result = select_winner(&env, &stranger, id, &submitter);
-        assert_eq!(result, Err(ContractError::Unauthorized));
+            let result = select_winner(&env, &stranger, id, &submitter);
+            assert_eq!(result, Err(ContractError::Unauthorized));
+        });
     }
 
     #[test]
     fn test_select_winner_without_submission_rejected() {
         let env = Env::default();
         env.mock_all_auths();
-        let owner = Address::generate(&env);
-        let token = Address::generate(&env);
-        let non_submitter = Address::generate(&env);
-        let id = make_bounty(&env, &owner, &token);
+        with_contract(&env, || {
+            let owner = Address::generate(&env);
+            let token = Address::generate(&env);
+            let non_submitter = Address::generate(&env);
+            let id = make_bounty(&env, &owner, &token);
 
-        let result = select_winner(&env, &owner, id, &non_submitter);
-        assert_eq!(result, Err(ContractError::SubmissionNotFound));
+            let result = select_winner(&env, &owner, id, &non_submitter);
+            assert_eq!(result, Err(ContractError::SubmissionNotFound));
+        });
     }
 
     #[test]
     fn test_cancel_bounty_by_non_owner_rejected() {
         let env = Env::default();
         env.mock_all_auths();
-        let owner = Address::generate(&env);
-        let token = Address::generate(&env);
-        let stranger = Address::generate(&env);
-        let id = make_bounty(&env, &owner, &token);
+        with_contract(&env, || {
+            let owner = Address::generate(&env);
+            let token = Address::generate(&env);
+            let stranger = Address::generate(&env);
+            let id = make_bounty(&env, &owner, &token);
 
-        let result = cancel_bounty(&env, &stranger, id);
-        assert_eq!(result, Err(ContractError::Unauthorized));
+            let result = cancel_bounty(&env, &stranger, id);
+            assert_eq!(result, Err(ContractError::Unauthorized));
+        });
     }
 
     #[test]
     fn test_start_review_closes_to_new_submissions() {
         let env = Env::default();
         env.mock_all_auths();
-        let owner = Address::generate(&env);
-        let token = Address::generate(&env);
-        let submitter = Address::generate(&env);
-        let id = make_bounty(&env, &owner, &token);
+        with_contract(&env, || {
+            let owner = Address::generate(&env);
+            let token = Address::generate(&env);
+            let submitter = Address::generate(&env);
+            let id = make_bounty(&env, &owner, &token);
 
-        start_review(&env, &owner, id).unwrap();
-        let bounty = get_bounty(&env, id).unwrap();
-        assert_eq!(bounty.status, BountyStatus::UnderReview);
+            start_review(&env, &owner, id).unwrap();
+            let bounty = get_bounty(&env, id).unwrap();
+            assert_eq!(bounty.status, BountyStatus::UnderReview);
 
-        let result = submit_solution(&env, id, &submitter, String::from_str(&env, "proof"));
-        assert_eq!(result, Err(ContractError::BountyNotOpen));
+            let result = submit_solution(&env, id, &submitter, String::from_str(&env, "proof"));
+            assert_eq!(result, Err(ContractError::BountyNotOpen));
+        });
     }
 
     #[test]
     fn test_list_submitters_tracks_all_entrants() {
         let env = Env::default();
         env.mock_all_auths();
-        let owner = Address::generate(&env);
-        let token = Address::generate(&env);
-        let s1 = Address::generate(&env);
-        let s2 = Address::generate(&env);
-        let id = make_bounty(&env, &owner, &token);
+        with_contract(&env, || {
+            let owner = Address::generate(&env);
+            let token = Address::generate(&env);
+            let s1 = Address::generate(&env);
+            let s2 = Address::generate(&env);
+            let id = make_bounty(&env, &owner, &token);
 
-        submit_solution(&env, id, &s1, String::from_str(&env, "p1")).unwrap();
-        submit_solution(&env, id, &s2, String::from_str(&env, "p2")).unwrap();
+            submit_solution(&env, id, &s1, String::from_str(&env, "p1")).unwrap();
+            submit_solution(&env, id, &s2, String::from_str(&env, "p2")).unwrap();
 
-        let submitters = list_submitters(&env, id);
-        assert_eq!(submitters.len(), 2);
+            let submitters = list_submitters(&env, id);
+            assert_eq!(submitters.len(), 2);
+        });
     }
 }

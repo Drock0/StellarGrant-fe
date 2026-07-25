@@ -31,8 +31,8 @@ pub fn try_auto_approve(
     grant_id: u64,
     milestone_idx: u32,
 ) -> Result<bool, ContractError> {
-    let config =
-        Storage::get_auto_approve_config(env, grant_id).ok_or(ContractError::AutoApproveNotEnabled)?;
+    let config = Storage::get_auto_approve_config(env, grant_id)
+        .ok_or(ContractError::AutoApproveNotEnabled)?;
 
     if !config.enabled {
         return Err(ContractError::AutoApproveNotEnabled);
@@ -44,8 +44,8 @@ pub fn try_auto_approve(
         return Err(ContractError::MilestoneIndexOutOfBounds);
     }
 
-    let milestone =
-        Storage::get_milestone(env, grant_id, milestone_idx).ok_or(ContractError::MilestoneNotFound)?;
+    let milestone = Storage::get_milestone(env, grant_id, milestone_idx)
+        .ok_or(ContractError::MilestoneNotFound)?;
 
     if milestone.state != MilestoneState::Submitted {
         return Ok(false);
@@ -60,7 +60,11 @@ pub fn try_auto_approve(
     let submission_time = milestone.submission_timestamp;
     let deadline = milestone.deadline.unwrap_or(0);
 
-    let effective_deadline = if deadline > 0 { deadline } else { submission_time };
+    let effective_deadline = if deadline > 0 {
+        deadline
+    } else {
+        submission_time
+    };
     let grace_end = effective_deadline.saturating_add(config.grace_period_seconds);
 
     if now < grace_end {
@@ -135,7 +139,11 @@ pub fn can_auto_approve(env: &Env, grant_id: u64, milestone_idx: u32) -> bool {
     let now = env.ledger().timestamp();
     let submission_time = milestone.submission_timestamp;
     let deadline = milestone.deadline.unwrap_or(0);
-    let effective_deadline = if deadline > 0 { deadline } else { submission_time };
+    let effective_deadline = if deadline > 0 {
+        deadline
+    } else {
+        submission_time
+    };
     let grace_end = effective_deadline.saturating_add(config.grace_period_seconds);
 
     if now < grace_end {

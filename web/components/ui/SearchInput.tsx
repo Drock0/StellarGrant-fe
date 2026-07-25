@@ -10,6 +10,7 @@ export interface SearchInputProps {
   placeholder?: string;
   className?: string;
   "aria-label"?: string;
+  disabled?: boolean;
 }
 
 function SearchIcon() {
@@ -59,6 +60,7 @@ export function SearchInput({
   placeholder = "Search grants, contributors, milestones…",
   className = "",
   "aria-label": ariaLabel = "Search",
+  disabled = false,
 }: SearchInputProps) {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -86,6 +88,7 @@ export function SearchInput({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         aria-label={ariaLabel}
+        disabled={disabled}
         className="w-full rounded-none border border-border-color bg-surface py-3 pl-10 pr-10 font-mono text-sm text-text-primary outline-none transition-colors focus:border-accent-primary"
       />
       {value.length > 0 && (
