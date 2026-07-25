@@ -71,7 +71,8 @@ pub fn trigger_timers(env: &Env, caller: &Address, grant_id: u64) -> u32 {
 
         let eligible = match timer.trigger_type {
             TimerTriggerType::AutoExpire => {
-                grant.status == GrantStatus::Active && grant.milestones_paid_out < grant.total_milestones
+                grant.status == GrantStatus::Active
+                    && grant.milestones_paid_out < grant.total_milestones
             }
             TimerTriggerType::AutoActivate => {
                 grant.status == GrantStatus::Active && grant.escrow_balance >= grant.total_amount
@@ -180,7 +181,10 @@ fn execute_timer_action(env: &Env, grant: &crate::types::Grant, timer: &TimerRec
         TimerTriggerType::AutoCancel => {
             if let Some(mut g) = Storage::get_grant(env, grant.id) {
                 g.status = GrantStatus::Cancelled;
-                g.reason = Some(soroban_sdk::String::from_str(env, "auto-cancelled: not funded by deadline"));
+                g.reason = Some(soroban_sdk::String::from_str(
+                    env,
+                    "auto-cancelled: not funded by deadline",
+                ));
                 g.timestamp = env.ledger().timestamp();
                 Storage::set_grant(env, grant.id, &g);
             }

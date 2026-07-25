@@ -79,8 +79,8 @@ pub fn approve(
 ) -> Result<(), ContractError> {
     approver.require_auth();
 
-    let mut clawback = Storage::get_clawback(env, grant_id, milestone_idx)
-        .ok_or(ContractError::InvalidState)?;
+    let mut clawback =
+        Storage::get_clawback(env, grant_id, milestone_idx).ok_or(ContractError::InvalidState)?;
 
     // Check status
     if clawback.status != ClawbackStatus::Pending {
@@ -124,8 +124,8 @@ pub fn dispute(
 ) -> Result<(), ContractError> {
     contributor.require_auth();
 
-    let mut clawback = Storage::get_clawback(env, grant_id, milestone_idx)
-        .ok_or(ContractError::InvalidState)?;
+    let mut clawback =
+        Storage::get_clawback(env, grant_id, milestone_idx).ok_or(ContractError::InvalidState)?;
 
     // Verify contributor is the target
     if clawback.target != *contributor {
@@ -166,8 +166,8 @@ pub fn execute(
 ) -> Result<i128, ContractError> {
     caller.require_auth();
 
-    let mut clawback = Storage::get_clawback(env, grant_id, milestone_idx)
-        .ok_or(ContractError::InvalidState)?;
+    let mut clawback =
+        Storage::get_clawback(env, grant_id, milestone_idx).ok_or(ContractError::InvalidState)?;
 
     // Check status - must be Approved
     if clawback.status != ClawbackStatus::Approved {
@@ -230,8 +230,8 @@ pub fn cancel(
         return Err(ContractError::Unauthorized);
     }
 
-    let mut clawback = Storage::get_clawback(env, grant_id, milestone_idx)
-        .ok_or(ContractError::InvalidState)?;
+    let mut clawback =
+        Storage::get_clawback(env, grant_id, milestone_idx).ok_or(ContractError::InvalidState)?;
 
     // Cannot cancel if already executed
     if clawback.status == ClawbackStatus::Executed {
@@ -447,9 +447,8 @@ mod tests {
         approve(&env, &arbiter, 1, 0).unwrap();
 
         // Advance time past dispute window
-        env.ledger().set_timestamp(
-            env.ledger().timestamp() + CLAWBACK_DISPUTE_WINDOW_SECONDS + 1,
-        );
+        env.ledger()
+            .set_timestamp(env.ledger().timestamp() + CLAWBACK_DISPUTE_WINDOW_SECONDS + 1);
 
         // Contributor disputes - should fail
         let result = dispute(&env, &owner, 1, 0);
@@ -516,9 +515,8 @@ mod tests {
         approve(&env, &arbiter, 1, 0).unwrap();
 
         // Advance time past dispute window
-        env.ledger().set_timestamp(
-            env.ledger().timestamp() + CLAWBACK_DISPUTE_WINDOW_SECONDS + 1,
-        );
+        env.ledger()
+            .set_timestamp(env.ledger().timestamp() + CLAWBACK_DISPUTE_WINDOW_SECONDS + 1);
 
         // Execute should succeed
         let result = execute(&env, &admin, 1, 0);
@@ -586,9 +584,8 @@ mod tests {
         approve(&env, &arbiter, 1, 0).unwrap();
 
         // Advance time past dispute window
-        env.ledger().set_timestamp(
-            env.ledger().timestamp() + CLAWBACK_DISPUTE_WINDOW_SECONDS + 1,
-        );
+        env.ledger()
+            .set_timestamp(env.ledger().timestamp() + CLAWBACK_DISPUTE_WINDOW_SECONDS + 1);
 
         execute(&env, &admin, 1, 0).unwrap();
 

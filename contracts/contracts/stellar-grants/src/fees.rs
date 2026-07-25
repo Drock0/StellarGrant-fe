@@ -41,10 +41,8 @@ pub fn deduct_and_split_fee(
 
     // Split the fee according to reviewer_reward_pool_bps and revenue_share_pool_bps.
     // The remaining portion stays with the protocol (treasury, collected as fees).
-    let reviewer_share =
-        crate::math::basis_points_of(total_fee, cfg.reviewer_reward_pool_bps)?;
-    let revenue_share =
-        crate::math::basis_points_of(total_fee, cfg.revenue_share_pool_bps)?;
+    let reviewer_share = crate::math::basis_points_of(total_fee, cfg.reviewer_reward_pool_bps)?;
+    let revenue_share = crate::math::basis_points_of(total_fee, cfg.revenue_share_pool_bps)?;
     let treasury_share = total_fee
         .checked_sub(reviewer_share)
         .and_then(|r| r.checked_sub(revenue_share))

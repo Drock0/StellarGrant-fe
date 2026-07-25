@@ -111,50 +111,39 @@ pub use errors::ContractError;
 pub use events::Events;
 pub use storage::Storage;
 pub use types::{
-    AcceptanceCriteria, Amendment, AmendmentStatus, AnalyticsSnapshot,
-    Arbiter, ArbiterVote, ArbitrationCase, AuditAction,
-    AuditEntry, AutoApproveConfig, AutoApproveRecord, BatchResult,
-    BondClaim, BondStatus, BountyGrant, BountyStatus, BountySubmission, BreakerState, CategoryStats,
-    ChecklistSubmission, ClawbackRequest, ClawbackStatus, CollateralDeposit,
-    CollateralRequirement, CollateralStatus, ComplianceAttestation, ComplianceLevel,
-    ComplianceStatus, ConditionResult, ContractVersion, ContributionType,
-    ContributorPortfolio, CriterionStatus, CrowdfundCampaign, CrowdfundPledge,
-    CrowdfundStatus, ChainId, BridgeRelayer, CrossChainProof, DashboardView, DecayConfig, DecayType,
-    DexConfig, Dispute, DisputeStatus, EscrowAccount,
-    EscrowLifecycleState, EscrowMode, EscrowState, EscrowReleaseRequest, EscrowReleaseApproval, EvidenceField,
-    EvidenceFieldType, EvidenceSchema, ExportGrant, ExportGrantPage,
-    ExportMilestone, ExportMilestonePage, ExtensionRequest, ExtensionStatus,
-    FeeRecord, ForkRecord, FunderGrantSummary, FunderLedger,
-    FunderReport, FunderTokenSummary, Grant, GrantArchetype,
-    GrantCard, GrantCategory, GrantDetailView, GrantFund, GrantPortfolio,
-    GrantStatus, GrantSummary, GrantTag, GrantTemplate,
-    GrantVersion, HookCallResult, HookEvent, HookRegistration,
-    InsuranceClaim, InsurancePolicy, Invoice, InvoiceStatus,
-    IpRights, LicenseRecord, LicenseType, LineItem,
-    LockupRecord, LockupStatus, MatchingAllocation, MatchingContribution,
-    MatchingRound, MerkleCommitment, MerkleProof, MigrationRecord,
-    Milestone, MilestoneDag, MilestoneDependency, MilestoneNft,
-    MilestoneState, MilestoneSubmission, MilestoneTemplate, MultisigProposal,
-    MultisigSigner, NftMetadata, NotificationEvent, OracleConfig,
-    ParamRecord, ParamType, ParamValue, PauseRecord,
-    PaymentSplit, PaymentStream, PerformanceBond, PortfolioFilter,
-    PortfolioStats, PriceQuote, ProtocolConfig, ProtocolMetrics,
-    ProtocolModule, ProvenanceRecord, PublicReview, PublicReviewSignal,
-    QuadraticVoteRecord, RateLimitAction, ReferralCode, ReferralRecord,
-    ReferralReward, RegistryEntry, RegistryEntryType, ReleaseCondition,
-    RelayAllowance, RelayConfig, RelayRecord, RelayableAction,
-    RenewalProposal, RenewalStatus, ReputationTier, RevenueEpoch,
-    ReviewParticipation, ReviewerAvailability, ReviewerProfile, ReviewerRequest,
-    ReviewerRequestStatus, ReviewerRewardPool, ReviewerRewardRecord, ReviewerView,
-    Role, RoleAssignment, RollingWindow, ScoreResult,
-    ScoringDimension, ScoringRubric, ScoringWeight, SignatureStatus,
-    SplitRecipient, StakerEpochRecord, StructuredEvidence, Subscription,
-    SubscriptionScope, SwapResult, SwapRoute, SyndicateGrant,
-    SyndicateMember, SyndicateStatus, TemplateCategory, TimerRecord,
-    TimerTriggerType, TokenMetric, TransferProposal, TransferableRole,
-    VerificationAttestation, VerificationLevel, VerificationStatus, VoiceCredits,
-    VotingMechanism, WaitlistConfig, WaitlistEntry, WhitelistEntry,
-    WhitelistMode, WhitelistScope,
+    AcceptanceCriteria, Amendment, AmendmentStatus, AnalyticsSnapshot, Arbiter, ArbiterVote,
+    ArbitrationCase, AuditAction, AuditEntry, AutoApproveConfig, AutoApproveRecord, BatchResult,
+    BondClaim, BondStatus, BountyGrant, BountyStatus, BountySubmission, BreakerState,
+    BridgeRelayer, CategoryStats, ChainId, ChecklistSubmission, ClawbackRequest, ClawbackStatus,
+    CollateralDeposit, CollateralRequirement, CollateralStatus, ComplianceAttestation,
+    ComplianceLevel, ComplianceStatus, ConditionResult, ContractVersion, ContributionType,
+    ContributorPortfolio, CriterionStatus, CrossChainProof, CrowdfundCampaign, CrowdfundPledge,
+    CrowdfundStatus, DashboardView, DecayConfig, DecayType, DexConfig, Dispute, DisputeStatus,
+    EscrowAccount, EscrowLifecycleState, EscrowMode, EscrowReleaseApproval, EscrowReleaseRequest,
+    EscrowState, EvidenceField, EvidenceFieldType, EvidenceSchema, ExportGrant, ExportGrantPage,
+    ExportMilestone, ExportMilestonePage, ExtensionRequest, ExtensionStatus, FeeRecord, ForkRecord,
+    FunderGrantSummary, FunderLedger, FunderReport, FunderTokenSummary, Grant, GrantArchetype,
+    GrantCard, GrantCategory, GrantDetailView, GrantFund, GrantPortfolio, GrantStatus,
+    GrantSummary, GrantTag, GrantTemplate, GrantVersion, HookCallResult, HookEvent,
+    HookRegistration, InsuranceClaim, InsurancePolicy, Invoice, InvoiceStatus, IpRights,
+    LicenseRecord, LicenseType, LineItem, LockupRecord, LockupStatus, MatchingAllocation,
+    MatchingContribution, MatchingRound, MerkleCommitment, MerkleProof, MigrationRecord, Milestone,
+    MilestoneDag, MilestoneDependency, MilestoneNft, MilestoneState, MilestoneSubmission,
+    MilestoneTemplate, MultisigProposal, MultisigSigner, NftMetadata, NotificationEvent,
+    OracleConfig, ParamRecord, ParamType, ParamValue, PauseRecord, PaymentSplit, PaymentStream,
+    PerformanceBond, PortfolioFilter, PortfolioStats, PriceQuote, ProtocolConfig, ProtocolMetrics,
+    ProtocolModule, ProvenanceRecord, PublicReview, PublicReviewSignal, QuadraticVoteRecord,
+    RateLimitAction, ReferralCode, ReferralRecord, ReferralReward, RegistryEntry,
+    RegistryEntryType, RelayAllowance, RelayConfig, RelayRecord, RelayableAction, ReleaseCondition,
+    RenewalProposal, RenewalStatus, ReputationTier, RevenueEpoch, ReviewParticipation,
+    ReviewerAvailability, ReviewerProfile, ReviewerRequest, ReviewerRequestStatus,
+    ReviewerRewardPool, ReviewerRewardRecord, ReviewerView, Role, RoleAssignment, RollingWindow,
+    ScoreResult, ScoringDimension, ScoringRubric, ScoringWeight, SignatureStatus, SplitRecipient,
+    StakerEpochRecord, StructuredEvidence, Subscription, SubscriptionScope, SwapResult, SwapRoute,
+    SyndicateGrant, SyndicateMember, SyndicateStatus, TemplateCategory, TimerRecord,
+    TimerTriggerType, TokenMetric, TransferProposal, TransferableRole, VerificationAttestation,
+    VerificationLevel, VerificationStatus, VoiceCredits, VotingMechanism, WaitlistConfig,
+    WaitlistEntry, WhitelistEntry, WhitelistMode, WhitelistScope,
 };
 
 use metrics::MetricField;
@@ -525,11 +514,7 @@ impl StellarGrantsContract {
                 // Deduct protocol fee (split across reviewer reward pool,
                 // revenue-share pool, and treasury) before passing the net
                 // amount to the grant recipient or split recipients.
-                let net_amount = fees::deduct_and_split_fee(
-                    env,
-                    &grant.token,
-                    ms.amount,
-                )?;
+                let net_amount = fees::deduct_and_split_fee(env, &grant.token, ms.amount)?;
                 if split_payment::has_split(env, grant_id, idx) {
                     split_payment::execute_split(env, grant_id, idx, net_amount)?;
                 } else {
@@ -537,9 +522,19 @@ impl StellarGrantsContract {
                 }
             }
             if owner_amount > 0 {
-                let config: ProtocolConfig = env.storage().persistent().get(&storage::keys::DataKey::Config).unwrap();
+                let config: ProtocolConfig = env
+                    .storage()
+                    .persistent()
+                    .get(&storage::keys::DataKey::Config)
+                    .unwrap();
                 if config.multisig_threshold > 0 && owner_amount >= config.multisig_threshold {
-                    crate::escrow_multisig::create_request(env, grant_id, 0, owner_amount, grant.owner.clone())?;
+                    crate::escrow_multisig::create_request(
+                        env,
+                        grant_id,
+                        0,
+                        owner_amount,
+                        grant.owner.clone(),
+                    )?;
                 } else {
                     escrow::release(env, grant_id, &grant.owner, owner_amount)?;
                 }
@@ -1225,7 +1220,7 @@ impl StellarGrantsContract {
     }
 
     // ── Milestone Templates ────────────────────────────────────────────────────
-    
+
     pub fn save_template(
         env: Env,
         owner: Address,
@@ -1235,9 +1230,17 @@ impl StellarGrantsContract {
         default_amount_pct: u32,
         is_public: bool,
     ) -> Result<u64, ContractError> {
-        milestone_template::save_template(&env, owner, name, description, category, default_amount_pct, is_public)
+        milestone_template::save_template(
+            &env,
+            owner,
+            name,
+            description,
+            category,
+            default_amount_pct,
+            is_public,
+        )
     }
-    
+
     pub fn create_milestones_from_template(
         env: Env,
         caller: Address,
@@ -1940,17 +1943,12 @@ impl StellarGrantsContract {
         caller.require_auth();
         bounty::select_winner(&env, &caller, bounty_id, &winner)?;
         metrics::increment(&env, MetricField::BountiesAwarded, 1);
-        let bounty = bounty::get_bounty(&env, bounty_id)
-            .ok_or(ContractError::BountyNotFound)?;
+        let bounty = bounty::get_bounty(&env, bounty_id).ok_or(ContractError::BountyNotFound)?;
         metrics::update_token_locked(&env, &bounty.token, -bounty.prize_amount);
         Ok(())
     }
 
-    pub fn cancel_bounty(
-        env: Env,
-        caller: Address,
-        bounty_id: u64,
-    ) -> Result<(), ContractError> {
+    pub fn cancel_bounty(env: Env, caller: Address, bounty_id: u64) -> Result<(), ContractError> {
         caller.require_auth();
         bounty::cancel_bounty(&env, &caller, bounty_id)
     }
@@ -3971,12 +3969,20 @@ impl StellarGrantsContract {
     }
 
     /// Join the waitlist for a grant. Returns the position (1-indexed).
-    pub fn join_waitlist(env: Env, applicant: Address, grant_id: u64) -> Result<u32, ContractError> {
+    pub fn join_waitlist(
+        env: Env,
+        applicant: Address,
+        grant_id: u64,
+    ) -> Result<u32, ContractError> {
         waitlist::join(&env, &applicant, grant_id)
     }
 
     /// Leave the waitlist voluntarily.
-    pub fn leave_waitlist(env: Env, applicant: Address, grant_id: u64) -> Result<(), ContractError> {
+    pub fn leave_waitlist(
+        env: Env,
+        applicant: Address,
+        grant_id: u64,
+    ) -> Result<(), ContractError> {
         waitlist::leave(&env, &applicant, grant_id)
     }
 
@@ -4186,7 +4192,7 @@ fn apply_milestone_submission(
     } else {
         proof_url
     };
-    
+
     let milestone = Milestone {
         idx: milestone_idx,
         description: description.clone(),

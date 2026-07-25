@@ -72,134 +72,17 @@
               "key": {
                 "vec": [
                   {
-                    "symbol": "ChecklistSubmission"
+                    "symbol": "Escrow"
                   },
                   {
-                    "u64": "1"
-                  },
-                  {
-                    "u32": 0
-                  }
-                ]
-              },
-              "durability": "persistent",
-              "val": {
-                "map": [
-                  {
-                    "key": {
-                      "symbol": "all_required_met"
-                    },
-                    "val": {
-                      "bool": true
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "criteria"
-                    },
-                    "val": {
-                      "vec": [
-                        {
-                          "map": [
-                            {
-                              "key": {
-                                "symbol": "description"
-                              },
-                              "val": {
-                                "string": "Nice to have"
-                              }
-                            },
-                            {
-                              "key": {
-                                "symbol": "idx"
-                              },
-                              "val": {
-                                "u32": 0
-                              }
-                            },
-                            {
-                              "key": {
-                                "symbol": "is_required"
-                              },
-                              "val": {
-                                "bool": false
-                              }
-                            }
-                          ]
-                        }
-                      ]
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "evidence_urls"
-                    },
-                    "val": {
-                      "vec": [
-                        {
-                          "string": "proof"
-                        }
-                      ]
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "grant_id"
-                    },
-                    "val": {
-                      "u64": "1"
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "milestone_idx"
-                    },
-                    "val": {
-                      "u32": 0
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "statuses"
-                    },
-                    "val": {
-                      "vec": [
-                        {
-                          "u32": 3
-                        }
-                      ]
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "submitted_at"
-                    },
-                    "val": {
-                      "u64": "0"
-                    }
-                  }
-                ]
-              }
-            }
-          },
-          "ext": "v0"
-        },
-        "live_until": 1000000
-      },
-      {
-        "entry": {
-          "last_modified_ledger_seq": 0,
-          "data": {
-            "contract_data": {
-              "ext": "v0",
-              "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-              "key": {
-                "vec": [
-                  {
-                    "symbol": "EscrowAccount"
-                  },
-                  {
-                    "u64": "1"
+                    "vec": [
+                      {
+                        "symbol": "Account"
+                      },
+                      {
+                        "u64": "1"
+                      }
+                    ]
                   }
                 ]
               },
@@ -299,7 +182,14 @@
                     "symbol": "Grant"
                   },
                   {
-                    "u64": "1"
+                    "vec": [
+                      {
+                        "symbol": "Data"
+                      },
+                      {
+                        "u64": "1"
+                      }
+                    ]
                   }
                 ]
               },
@@ -452,13 +342,20 @@
               "key": {
                 "vec": [
                   {
-                    "symbol": "MilestoneChecklist"
+                    "symbol": "Milestone"
                   },
                   {
-                    "u64": "1"
-                  },
-                  {
-                    "u32": 0
+                    "vec": [
+                      {
+                        "symbol": "Checklist"
+                      },
+                      {
+                        "u64": "1"
+                      },
+                      {
+                        "u32": 0
+                      }
+                    ]
                   }
                 ]
               },
@@ -492,6 +389,137 @@
                         }
                       }
                     ]
+                  }
+                ]
+              }
+            }
+          },
+          "ext": "v0"
+        },
+        "live_until": 1000000
+      },
+      {
+        "entry": {
+          "last_modified_ledger_seq": 0,
+          "data": {
+            "contract_data": {
+              "ext": "v0",
+              "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+              "key": {
+                "vec": [
+                  {
+                    "symbol": "Milestone"
+                  },
+                  {
+                    "vec": [
+                      {
+                        "symbol": "Submission"
+                      },
+                      {
+                        "u64": "1"
+                      },
+                      {
+                        "u32": 0
+                      }
+                    ]
+                  }
+                ]
+              },
+              "durability": "persistent",
+              "val": {
+                "map": [
+                  {
+                    "key": {
+                      "symbol": "all_required_met"
+                    },
+                    "val": {
+                      "bool": true
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "criteria"
+                    },
+                    "val": {
+                      "vec": [
+                        {
+                          "map": [
+                            {
+                              "key": {
+                                "symbol": "description"
+                              },
+                              "val": {
+                                "string": "Nice to have"
+                              }
+                            },
+                            {
+                              "key": {
+                                "symbol": "idx"
+                              },
+                              "val": {
+                                "u32": 0
+                              }
+                            },
+                            {
+                              "key": {
+                                "symbol": "is_required"
+                              },
+                              "val": {
+                                "bool": false
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "evidence_urls"
+                    },
+                    "val": {
+                      "vec": [
+                        {
+                          "string": "proof"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "grant_id"
+                    },
+                    "val": {
+                      "u64": "1"
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "milestone_idx"
+                    },
+                    "val": {
+                      "u32": 0
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "statuses"
+                    },
+                    "val": {
+                      "vec": [
+                        {
+                          "u32": 3
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "submitted_at"
+                    },
+                    "val": {
+                      "u64": "0"
+                    }
                   }
                 ]
               }

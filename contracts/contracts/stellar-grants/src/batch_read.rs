@@ -96,8 +96,7 @@ pub fn grant_detail(env: &Env, grant_id: u64) -> Result<GrantDetailView, Contrac
 
 /// Return all data needed for the protocol dashboard. Single RPC call.
 pub fn dashboard(env: &Env) -> DashboardView {
-    let active_grant_ids =
-        grant_index::by_status(env, crate::types::GrantStatus::Active, 0, 1000);
+    let active_grant_ids = grant_index::by_status(env, crate::types::GrantStatus::Active, 0, 1000);
     let active_grants = active_grant_ids.len();
 
     let protocol_metrics = get_or_default_metrics(env);
@@ -154,7 +153,9 @@ pub fn reviewer_dashboard(env: &Env, reviewer: &Address) -> ReviewerView {
             }
             for idx in 0..grant.total_milestones {
                 if let Some(ms) = Storage::get_milestone(env, grant_id, idx) {
-                    if ms.state == MilestoneState::Submitted && !ms.votes.contains_key(reviewer.clone()) {
+                    if ms.state == MilestoneState::Submitted
+                        && !ms.votes.contains_key(reviewer.clone())
+                    {
                         pending_votes.push_back((grant_id, idx));
                     }
                 }

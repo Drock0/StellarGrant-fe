@@ -34,11 +34,7 @@ pub fn attach_conditions(
 }
 
 /// Check all conditions for a milestone. Returns detailed results per condition.
-pub fn check_conditions(
-    env: &Env,
-    grant_id: u64,
-    milestone_idx: u32,
-) -> Vec<ConditionResult> {
+pub fn check_conditions(env: &Env, grant_id: u64, milestone_idx: u32) -> Vec<ConditionResult> {
     let conditions = Storage::get_release_conditions(env, grant_id, milestone_idx);
     let mut results = Vec::new(env);
 
@@ -68,11 +64,7 @@ pub fn all_conditions_met(env: &Env, grant_id: u64, milestone_idx: u32) -> bool 
 }
 
 /// Return the conditions attached to a milestone.
-pub fn get_conditions(
-    env: &Env,
-    grant_id: u64,
-    milestone_idx: u32,
-) -> Vec<ReleaseCondition> {
+pub fn get_conditions(env: &Env, grant_id: u64, milestone_idx: u32) -> Vec<ReleaseCondition> {
     Storage::get_release_conditions(env, grant_id, milestone_idx)
 }
 

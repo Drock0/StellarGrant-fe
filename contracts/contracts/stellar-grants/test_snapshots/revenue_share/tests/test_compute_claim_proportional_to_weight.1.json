@@ -1,27 +1,12 @@
 {
   "generators": {
-    "address": 5,
+    "address": 4,
     "nonce": 0,
     "mux_id": 0
   },
   "auth": [
     [],
-    [],
-    [
-      [
-        "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4",
-        {
-          "function": {
-            "contract_fn": {
-              "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-              "function_name": "",
-              "args": []
-            }
-          },
-          "sub_invocations": []
-        }
-      ]
-    ]
+    []
   ],
   "ledger": {
     "protocol_version": 25,
@@ -43,17 +28,10 @@
               "key": {
                 "vec": [
                   {
-                    "symbol": "Escrow"
+                    "symbol": "RevenueEpoch"
                   },
                   {
-                    "vec": [
-                      {
-                        "symbol": "Account"
-                      },
-                      {
-                        "u64": "1"
-                      }
-                    ]
+                    "u32": 0
                   }
                 ]
               },
@@ -62,26 +40,42 @@
                 "map": [
                   {
                     "key": {
-                      "symbol": "balance"
+                      "symbol": "claimed_count"
                     },
                     "val": {
-                      "i128": "0"
+                      "u32": 0
                     }
                   },
                   {
                     "key": {
-                      "symbol": "locked"
+                      "symbol": "end_at"
                     },
                     "val": {
-                      "bool": false
+                      "u64": "604800"
                     }
                   },
                   {
                     "key": {
-                      "symbol": "owner"
+                      "symbol": "finalized"
                     },
                     "val": {
-                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                      "bool": true
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "id"
+                    },
+                    "val": {
+                      "u32": 0
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "start_at"
+                    },
+                    "val": {
+                      "u64": "0"
                     }
                   },
                   {
@@ -89,23 +83,23 @@
                       "symbol": "token"
                     },
                     "val": {
-                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
                     }
                   },
                   {
                     "key": {
-                      "symbol": "total_deposited"
+                      "symbol": "total_revenue"
                     },
                     "val": {
-                      "i128": "0"
+                      "i128": "300"
                     }
                   },
                   {
                     "key": {
-                      "symbol": "total_released"
+                      "symbol": "total_stake_weight"
                     },
                     "val": {
-                      "i128": "0"
+                      "i128": "300"
                     }
                   }
                 ]
@@ -126,19 +120,72 @@
               "key": {
                 "vec": [
                   {
-                    "symbol": "GlobalAdmin"
+                    "symbol": "StakerEpochRecord"
+                  },
+                  {
+                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                  },
+                  {
+                    "u32": 0
                   }
                 ]
               },
               "durability": "persistent",
               "val": {
-                "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                "map": [
+                  {
+                    "key": {
+                      "symbol": "claimable"
+                    },
+                    "val": {
+                      "i128": "0"
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "claimed"
+                    },
+                    "val": {
+                      "bool": false
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "claimed_at"
+                    },
+                    "val": "void"
+                  },
+                  {
+                    "key": {
+                      "symbol": "epoch_id"
+                    },
+                    "val": {
+                      "u32": 0
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "stake_weight"
+                    },
+                    "val": {
+                      "i128": "100"
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "staker"
+                    },
+                    "val": {
+                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                    }
+                  }
+                ]
               }
             }
           },
           "ext": "v0"
         },
-        "live_until": 4095
+        "live_until": 1000000
       },
       {
         "entry": {
@@ -150,17 +197,13 @@
               "key": {
                 "vec": [
                   {
-                    "symbol": "Grant"
+                    "symbol": "StakerEpochRecord"
                   },
                   {
-                    "vec": [
-                      {
-                        "symbol": "Data"
-                      },
-                      {
-                        "u64": "1"
-                      }
-                    ]
+                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                  },
+                  {
+                    "u32": 0
                   }
                 ]
               },
@@ -169,15 +212,7 @@
                 "map": [
                   {
                     "key": {
-                      "symbol": "description"
-                    },
-                    "val": {
-                      "string": "desc"
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "escrow_balance"
+                      "symbol": "claimable"
                     },
                     "val": {
                       "i128": "0"
@@ -185,31 +220,21 @@
                   },
                   {
                     "key": {
-                      "symbol": "funders"
+                      "symbol": "claimed"
                     },
                     "val": {
-                      "vec": []
+                      "bool": false
                     }
                   },
                   {
                     "key": {
-                      "symbol": "id"
+                      "symbol": "claimed_at"
                     },
-                    "val": {
-                      "u64": "1"
-                    }
+                    "val": "void"
                   },
                   {
                     "key": {
-                      "symbol": "milestone_amount"
-                    },
-                    "val": {
-                      "i128": "10000"
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "milestones_paid_out"
+                      "symbol": "epoch_id"
                     },
                     "val": {
                       "u32": 0
@@ -217,82 +242,18 @@
                   },
                   {
                     "key": {
-                      "symbol": "owner"
+                      "symbol": "stake_weight"
                     },
                     "val": {
-                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                      "i128": "200"
                     }
                   },
                   {
                     "key": {
-                      "symbol": "reason"
-                    },
-                    "val": "void"
-                  },
-                  {
-                    "key": {
-                      "symbol": "require_compliance"
-                    },
-                    "val": "void"
-                  },
-                  {
-                    "key": {
-                      "symbol": "reviewers"
+                      "symbol": "staker"
                     },
                     "val": {
-                      "vec": [
-                        {
-                          "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
-                        }
-                      ]
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "status"
-                    },
-                    "val": {
-                      "u32": 1
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "timestamp"
-                    },
-                    "val": {
-                      "u64": "0"
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "title"
-                    },
-                    "val": {
-                      "string": "test"
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "token"
-                    },
-                    "val": {
-                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM"
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "total_amount"
-                    },
-                    "val": {
-                      "i128": "100000"
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "total_milestones"
-                    },
-                    "val": {
-                      "u32": 3
+                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                     }
                   }
                 ]
@@ -301,7 +262,7 @@
           },
           "ext": "v0"
         },
-        "live_until": 4095
+        "live_until": 1000000
       },
       {
         "entry": {
@@ -325,26 +286,6 @@
           "ext": "v0"
         },
         "live_until": 4095
-      },
-      {
-        "entry": {
-          "last_modified_ledger_seq": 0,
-          "data": {
-            "contract_data": {
-              "ext": "v0",
-              "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4",
-              "key": {
-                "ledger_key_nonce": {
-                  "nonce": "801925984706572462"
-                }
-              },
-              "durability": "temporary",
-              "val": "void"
-            }
-          },
-          "ext": "v0"
-        },
-        "live_until": 6311999
       },
       {
         "entry": {

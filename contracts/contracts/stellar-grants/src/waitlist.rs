@@ -1,7 +1,7 @@
-use soroban_sdk::{Address, Env, String, Vec};
 use crate::events::Events;
 use crate::storage::Storage;
 use crate::types::{ContractError, WaitlistConfig, WaitlistEntry};
+use soroban_sdk::{Address, Env, String, Vec};
 
 /// Configure the waitlist for a grant. Owner only.
 pub fn configure(
@@ -11,7 +11,7 @@ pub fn configure(
     config: WaitlistConfig,
 ) -> Result<(), ContractError> {
     let grant = Storage::get_grant(env, grant_id).ok_or(ContractError::GrantNotFound)?;
-    
+
     if grant.owner != *owner {
         return Err(ContractError::Unauthorized);
     }
@@ -22,8 +22,7 @@ pub fn configure(
 
 /// Join the waitlist for a grant. Returns the position (1-indexed).
 pub fn join(env: &Env, applicant: &Address, grant_id: u64) -> Result<u32, ContractError> {
-    let config = Storage::get_waitlist_config(env, grant_id)
-        .ok_or(ContractError::InvalidInput)?;
+    let config = Storage::get_waitlist_config(env, grant_id).ok_or(ContractError::InvalidInput)?;
 
     let mut entries = Storage::get_waitlist_entries(env, grant_id);
 
@@ -139,7 +138,7 @@ pub fn promote_next(env: &Env, grant_id: u64) -> Option<Address> {
     }
 
     let mut entries = Storage::get_waitlist_entries(env, grant_id);
-    
+
     if entries.is_empty() {
         return None;
     }
