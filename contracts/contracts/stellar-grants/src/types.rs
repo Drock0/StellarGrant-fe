@@ -1837,9 +1837,11 @@ pub struct GrantPortfolio {
     pub stats: PortfolioStats,
 }
 
+// ── Issue #570: Multi-Grant Batch Operations ──────────────────────────────
+
 #[contracttype]
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct BatchResult {
+pub struct MultiGrantBatchResult {
     pub successful: u32,
     pub failed: u32,
     pub total: u32,
@@ -2170,9 +2172,16 @@ pub struct BatchItemResult {
     pub error_code: Option<u32>,
 }
 
-// NOTE: this batch-op BatchResult (total/succeeded/failed/results) is unused
-// while `batch.rs` stays unwired from lib.rs, to avoid clashing with the
-// multi_grant::BatchResult shape (successful/failed/total) already exported.
+// ── Issue #622: Batch Operations Result ────────────────────────────────────
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BatchResult {
+    pub total: u32,
+    pub succeeded: u32,
+    pub failed: u32,
+    pub results: Vec<BatchItemResult>,
+}
 
 // ── Issue #622: Batch Read View Types ─────────────────────────────────────
 

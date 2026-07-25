@@ -1,6 +1,7 @@
-use soroban_sdk::{Address, Env, IntoVal, Symbol, Val, Vec};
+use soroban_sdk::{Address, Env};
 
 use crate::errors::ContractError;
+use crate::interfaces::OracleClient;
 use crate::storage::Storage;
 use crate::types::{OracleConfig, PriceQuote};
 
@@ -39,12 +40,8 @@ fn fetch_oracle_price(
     oracle: &Address,
     token: &Address,
 ) -> Result<(i128, u64), ContractError> {
-    let mut args: Vec<Val> = Vec::new(env);
-    args.push_back(token.clone().into_val(env));
-
-    let result: Option<(i128, u64)> = env.invoke_contract(oracle, &Symbol::new(env, "price"), args);
-
-    result.ok_or(ContractError::InvalidInput)
+    let client = OracleClient::new(env, oracle);
+    client.try_price(token).map_err(|_| ContractError::InvalidInput)
 }
 
 /// Return the stored oracle config. Returns Err if not configured.

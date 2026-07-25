@@ -1,17 +1,6 @@
 /// Fuzz / property-based entry point for stellar-grants contract.
 ///
 /// Run via: `cargo test --test fuzz_amounts` from the contract directory.
-/// The proptest suite below executes 1 000+ randomised iterations by default
-/// (controlled by `PROPTEST_CASES` env var or the `ProptestConfig`).
-///
-/// Edge cases discovered during development:
-///  - `milestone_amount * num_milestones` can overflow i128 for very large
-///    inputs; the contract correctly rejects these via `checked_mul`.
-///  - When `total_amount == milestone_amount * num_milestones` (exact match)
-///    the remaining balance after release is always 0.
-///  - Proportional refunds in `grant_cancel` may lose at most
-///    `(n_funders - 1)` stroops due to integer division; the last funder
-///    always receives the leftover, so the total distributed == escrow_balance.
 mod fees_fuzz;
 use proptest::prelude::*;
 use proptest::test_runner::{Config, TestRunner};

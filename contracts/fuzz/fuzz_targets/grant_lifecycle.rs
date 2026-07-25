@@ -1,8 +1,8 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
+use soroban_sdk::{Address, Env, String, Vec};
 use stellar_grants::StellarGrantsContract;
-use soroban_sdk::{Env, Address, String, Vec};
 
 // Fuzz target for grant_create and grant_fund lifecycle
 fuzz_target!(|data: &[u8]| {
@@ -12,16 +12,20 @@ fuzz_target!(|data: &[u8]| {
     }
     let result = std::panic::catch_unwind(|| {
         let env = Env::default();
-        let owner = Address::from_str(&env, "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF");
+        let owner = Address::from_str(
+            &env,
+            "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF",
+        );
         let title = String::from_str(&env, "Fuzz Grant");
         let description = String::from_str(&env, "Fuzzing");
-        let token = Address::from_str(&env, "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHG");
-        let total_amount = i128::from_le_bytes([data.get(0).copied().unwrap_or(1); 16]);
+        let token = Address::from_str(
+            &env,
+            "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHG",
+        );
+        let total_amount = i128::from_le_bytes([data.first().copied().unwrap_or(1); 16]);
         let milestone_amount = i128::from_le_bytes([data.get(1).copied().unwrap_or(1); 16]);
         let num_milestones = (data.get(2).copied().unwrap_or(1) % 10) as u32 + 1;
         let reviewers: Vec<Address> = Vec::new(&env);
-        let quorum = 1;
-        let milestone_deadlines = None;
 
         let _ = StellarGrantsContract::grant_create(
             env.clone(),
@@ -33,15 +37,12 @@ fuzz_target!(|data: &[u8]| {
             milestone_amount,
             num_milestones,
             reviewers,
-            quorum,
-            milestone_deadlines,
-            0i128,
-            0i128,
-            Vec::new(&env),
-            false,
         );
 
-        let funder = Address::from_str(&env, "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHH");
+        let funder = Address::from_str(
+            &env,
+            "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHH",
+        );
         let fund_amount = i128::from_le_bytes([data.get(3).copied().unwrap_or(1); 16]);
         let _ = StellarGrantsContract::grant_fund(env.clone(), 0, funder, fund_amount);
 
@@ -51,7 +52,9 @@ fuzz_target!(|data: &[u8]| {
             for idx in 0..grant.total_milestones {
                 if let Some(milestone) = stellar_grants::Storage::get_milestone(&env, 0, idx) {
                     use stellar_grants::MilestoneState;
-                    if milestone.state != MilestoneState::Approved && milestone.state != MilestoneState::Paid {
+                    if milestone.state != MilestoneState::Approved
+                        && milestone.state != MilestoneState::Paid
+                    {
                         sum_unapproved = sum_unapproved.saturating_add(milestone.amount);
                     }
                 }
