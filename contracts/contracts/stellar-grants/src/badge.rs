@@ -221,7 +221,7 @@ pub fn manual_award(
     badge_type: BadgeType,
 ) -> Result<(), ContractError> {
     admin.require_auth();
-    if Storage::get_treasury(env) != Some(admin.clone()) {
+    if Storage::get_global_admin(env) != Some(admin.clone()) {
         return Err(ContractError::Unauthorized);
     }
     write_award(env, contributor, badge_type, None, None);
