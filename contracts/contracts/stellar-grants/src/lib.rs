@@ -9,6 +9,7 @@
     unused_variables,
     clippy::clone_on_copy,
     clippy::len_zero,
+    clippy::manual_checked_ops,
     clippy::manual_range_contains,
     clippy::manual_saturating_arithmetic,
     clippy::match_like_matches_macro,
