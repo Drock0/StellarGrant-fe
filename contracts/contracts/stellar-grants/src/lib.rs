@@ -112,8 +112,8 @@ pub use events::Events;
 pub use storage::Storage;
 pub use types::{
     AcceptanceCriteria, Amendment, AmendmentStatus, AnalyticsSnapshot, Arbiter, ArbiterVote,
-    ArbitrationCase, AuditAction, AuditEntry, AutoApproveConfig, AutoApproveRecord,
-    BadgeType, BatchItemResult, BatchMilestoneVote, BatchResult, BondClaim, BondStatus, BountyGrant,
+    ArbitrationCase, AuditAction, AuditEntry, AutoApproveConfig, AutoApproveRecord, BadgeType,
+    BatchItemResult, BatchMilestoneVote, BatchResult, BondClaim, BondStatus, BountyGrant,
     BountyStatus, BountySubmission, BreakerState, BridgeRelayer, CategoryStats, ChainId,
     ChecklistSubmission, ClawbackRequest, ClawbackStatus, CollateralDeposit, CollateralRequirement,
     CollateralStatus, ComplianceAttestation, ComplianceLevel, ComplianceStatus, ConditionResult,
