@@ -183,4 +183,6 @@ pub enum ContractError {
     NotYetUnlocked = 142,
     LockupRevocationUnauthorized = 143,
     LockupAlreadyRevoked = 144,
+    // Params (#700)
+    DaoVoteRequired = 145,
 }

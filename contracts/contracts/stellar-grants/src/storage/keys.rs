@@ -13,6 +13,7 @@ pub enum GrantKey {
     Tags(u64),
     TagIndex(u32),
     CategoryList,
+    CategoryIndex(u32),
     SpecVersion(u64, u32),
     CurrentVersion(u64),
     Amendment(u64, u32),
