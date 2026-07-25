@@ -67,6 +67,21 @@ pub fn tag_grant(
         tagged_at: env.ledger().timestamp(),
     };
 
+    // Clean up old indices if re-tagging
+    if let Some(existing) = Storage::get_grant_tags(env, grant_id) {
+        for old_tag in existing.freeform_tags.iter() {
+            let hash = hash_tag(&old_tag);
+            let index = Storage::get_tag_index(env, hash);
+            let mut filtered = Vec::new(env);
+            for idx_grant_id in index.iter() {
+                if idx_grant_id != grant_id {
+                    filtered.push_back(idx_grant_id);
+                }
+            }
+            Storage::set_tag_index(env, hash, &filtered);
+        }
+    }
+
     Storage::set_grant_tags(env, &tag);
 
     for tag_str in freeform_tags.iter() {

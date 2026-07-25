@@ -4078,6 +4078,9 @@ fn apply_milestone_submission(
         }
     }
 
+    // Check milestone dependencies: all previous milestones must be approved
+    milestone_deps::can_submit(env, grant_id, milestone_idx)?;
+
     // Validate structured evidence against the schema when one has been registered.
     evidence_schema::validate_evidence(env, grant_id, milestone_idx)?;
 
