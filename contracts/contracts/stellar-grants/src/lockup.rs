@@ -69,6 +69,11 @@ pub fn lock_payout(
     token: &Address,
     amount: i128,
 ) -> Result<(), ContractError> {
+    let admin = Storage::get_global_admin(env).ok_or(ContractError::Unauthorized)?;
+    if admin != *holder {
+        return Err(ContractError::Unauthorized);
+    }
+
     let key = get_lockup_key(grant_id, milestone_idx);
     let mut record: LockupRecord = env
         .storage()
