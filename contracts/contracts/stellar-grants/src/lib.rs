@@ -112,38 +112,38 @@ pub use events::Events;
 pub use storage::Storage;
 pub use types::{
     AcceptanceCriteria, Amendment, AmendmentStatus, AnalyticsSnapshot, Arbiter, ArbiterVote,
-    ArbitrationCase, AuditAction, AuditEntry, AutoApproveConfig, AutoApproveRecord, BatchResult,
-    BondClaim, BondStatus, BountyGrant, BountyStatus, BountySubmission, BreakerState,
-    BridgeRelayer, CategoryStats, ChainId, ChecklistSubmission, ClawbackRequest, ClawbackStatus,
-    CollateralDeposit, CollateralRequirement, CollateralStatus, ComplianceAttestation,
-    ComplianceLevel, ComplianceStatus, ConditionResult, ContractVersion, ContributionType,
-    ContributorPortfolio, CriterionStatus, CrossChainProof, CrowdfundCampaign, CrowdfundPledge,
-    CrowdfundStatus, DashboardView, DecayConfig, DecayType, DexConfig, Dispute, DisputeStatus,
-    EscrowAccount, EscrowLifecycleState, EscrowMode, EscrowReleaseApproval, EscrowReleaseRequest,
-    EscrowState, EvidenceField, EvidenceFieldType, EvidenceSchema, ExportGrant, ExportGrantPage,
-    ExportMilestone, ExportMilestonePage, ExtensionRequest, ExtensionStatus, FeeRecord, ForkRecord,
-    FunderGrantSummary, FunderLedger, FunderReport, FunderTokenSummary, Grant, GrantArchetype,
-    GrantCard, GrantCategory, GrantDetailView, GrantFund, GrantPortfolio, GrantStatus,
-    GrantSummary, GrantTag, GrantTemplate, GrantVersion, HookCallResult, HookEvent,
-    HookRegistration, InsuranceClaim, InsurancePolicy, Invoice, InvoiceStatus, IpRights,
-    LicenseRecord, LicenseType, LineItem, LockupRecord, LockupStatus, MatchingAllocation,
-    MatchingContribution, MatchingRound, MerkleCommitment, MerkleProof, MigrationRecord, Milestone,
-    MilestoneDag, MilestoneDependency, MilestoneNft, MilestoneState, MilestoneSubmission,
-    MilestoneTemplate, MultisigProposal, MultisigSigner, NftMetadata, NotificationEvent,
-    OracleConfig, ParamRecord, ParamType, ParamValue, PauseRecord, PaymentSplit, PaymentStream,
-    PerformanceBond, PortfolioFilter, PortfolioStats, PriceQuote, ProtocolConfig, ProtocolMetrics,
-    ProtocolModule, ProvenanceRecord, PublicReview, PublicReviewSignal, QuadraticVoteRecord,
-    RateLimitAction, ReferralCode, ReferralRecord, ReferralReward, RegistryEntry,
-    RegistryEntryType, RelayAllowance, RelayConfig, RelayRecord, RelayableAction, ReleaseCondition,
-    RenewalProposal, RenewalStatus, ReputationTier, RevenueEpoch, ReviewParticipation,
-    ReviewerAvailability, ReviewerProfile, ReviewerRequest, ReviewerRequestStatus,
-    ReviewerRewardPool, ReviewerRewardRecord, ReviewerView, Role, RoleAssignment, RollingWindow,
-    ScoreResult, ScoringDimension, ScoringRubric, ScoringWeight, SignatureStatus, SplitRecipient,
-    StakerEpochRecord, StructuredEvidence, Subscription, SubscriptionScope, SwapResult, SwapRoute,
-    SyndicateGrant, SyndicateMember, SyndicateStatus, TemplateCategory, TimerRecord,
-    TimerTriggerType, TokenMetric, TransferProposal, TransferableRole, VerificationAttestation,
-    VerificationLevel, VerificationStatus, VoiceCredits, VotingMechanism, WaitlistConfig,
-    WaitlistEntry, WhitelistEntry, WhitelistMode, WhitelistScope,
+    ArbitrationCase, AuditAction, AuditEntry, AutoApproveConfig, AutoApproveRecord, BatchItemResult,
+    BatchMilestoneVote, BatchResult, BondClaim, BondStatus, BountyGrant, BountyStatus,
+    BountySubmission, BreakerState, BridgeRelayer, CategoryStats, ChainId, ChecklistSubmission,
+    ClawbackRequest, ClawbackStatus, CollateralDeposit, CollateralRequirement, CollateralStatus,
+    ComplianceAttestation, ComplianceLevel, ComplianceStatus, ConditionResult, ContractVersion,
+    ContributionType, ContributorPortfolio, CriterionStatus, CrossChainProof, CrowdfundCampaign,
+    CrowdfundPledge, CrowdfundStatus, DashboardView, DecayConfig, DecayType, DexConfig, Dispute,
+    DisputeStatus, EscrowAccount, EscrowLifecycleState, EscrowMode, EscrowReleaseApproval,
+    EscrowReleaseRequest, EscrowState, EvidenceField, EvidenceFieldType, EvidenceSchema,
+    ExportGrant, ExportGrantPage, ExportMilestone, ExportMilestonePage, ExtensionRequest,
+    ExtensionStatus, FeeRecord, ForkRecord, FunderGrantSummary, FunderLedger, FunderReport,
+    FunderTokenSummary, Grant, GrantArchetype, GrantCard, GrantCategory, GrantDetailView,
+    GrantFund, GrantPortfolio, GrantStatus, GrantSummary, GrantTag, GrantTemplate, GrantVersion,
+    HookCallResult, HookEvent, HookRegistration, InsuranceClaim, InsurancePolicy, Invoice,
+    InvoiceStatus, IpRights, LicenseRecord, LicenseType, LineItem, LockupRecord, LockupStatus,
+    MatchingAllocation, MatchingContribution, MatchingRound, MerkleCommitment, MerkleProof,
+    MigrationRecord, Milestone, MilestoneDag, MilestoneDependency, MilestoneNft, MilestoneState,
+    MilestoneSubmission, MilestoneTemplate, MultisigProposal, MultisigSigner, MultiGrantBatchResult,
+    NftMetadata, NotificationEvent, OracleConfig, ParamRecord, ParamType, ParamValue, PauseRecord,
+    PaymentSplit, PaymentStream, PerformanceBond, PortfolioFilter, PortfolioStats, PriceQuote,
+    ProtocolConfig, ProtocolMetrics, ProtocolModule, ProvenanceRecord, PublicReview,
+    PublicReviewSignal, QuadraticVoteRecord, RateLimitAction, ReferralCode, ReferralRecord,
+    ReferralReward, RegistryEntry, RegistryEntryType, RelayAllowance, RelayConfig, RelayRecord,
+    RelayableAction, ReleaseCondition, RenewalProposal, RenewalStatus, ReputationTier, RevenueEpoch,
+    ReviewParticipation, ReviewerAvailability, ReviewerProfile, ReviewerRequest,
+    ReviewerRequestStatus, ReviewerRewardPool, ReviewerRewardRecord, ReviewerView, Role,
+    RoleAssignment, RollingWindow, ScoreResult, ScoringDimension, ScoringRubric, ScoringWeight,
+    SignatureStatus, SplitRecipient, StakerEpochRecord, StructuredEvidence, Subscription,
+    SubscriptionScope, SwapResult, SwapRoute, SyndicateGrant, SyndicateMember, SyndicateStatus,
+    TemplateCategory, TimerRecord, TimerTriggerType, TokenMetric, TransferProposal,
+    TransferableRole, VerificationAttestation, VerificationLevel, VerificationStatus, VoiceCredits,
+    VotingMechanism, WaitlistConfig, WaitlistEntry, WhitelistEntry, WhitelistMode, WhitelistScope,
 };
 
 use metrics::MetricField;
@@ -648,6 +648,10 @@ impl StellarGrantsContract {
                 let _ = milestone_nft::mint(&env, grant_id, milestone_idx, &grant.owner, meta);
                 // Track this grant in the contributor's portfolio index (#565)
                 Storage::push_contributor_grant_id(&env, &grant.owner, grant_id);
+                // Award badges for milestone completion (#689)
+                badge::try_award(&env, &grant.owner, BadgeType::FirstMilestone, Some(grant_id), Some(milestone_idx));
+                badge::try_award(&env, &grant.owner, BadgeType::TenMilestones, Some(grant_id), Some(milestone_idx));
+                badge::try_award(&env, &grant.owner, BadgeType::FiftyMilestones, Some(grant_id), Some(milestone_idx));
             } else {
                 audit::log(
                     &env,

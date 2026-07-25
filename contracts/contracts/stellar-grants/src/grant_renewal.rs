@@ -1,6 +1,6 @@
 use crate::storage::Storage;
 use crate::types::{ContractError, GrantStatus, RenewalProposal, RenewalStatus};
-use soroban_sdk::{Address, Env, String};
+use soroban_sdk::{Address, Env, String, Vec};
 
 pub fn propose_renewal(
     env: &Env,
@@ -87,7 +87,26 @@ pub fn activate_renewal(
         return Err(ContractError::Unauthorized);
     }
 
-    let new_grant_id = Storage::increment_grant_counter(env);
+    let reviewers = if proposal.inherit_reviewers {
+        original_grant.reviewers.clone()
+    } else {
+        Vec::new(env)
+    };
+
+    let new_grant_id = crate::internal_grant_create(
+        env,
+        owner,
+        proposal.new_title.clone(),
+        proposal.new_description.clone(),
+        &original_grant.token,
+        proposal.new_total_amount,
+        proposal
+            .new_total_amount
+            .checked_div(proposal.new_num_milestones as i128)
+            .ok_or(ContractError::InvalidInput)?,
+        proposal.new_num_milestones,
+        reviewers,
+    )?;
 
     proposal.status = RenewalStatus::Active;
     proposal.new_grant_id = Some(new_grant_id);
