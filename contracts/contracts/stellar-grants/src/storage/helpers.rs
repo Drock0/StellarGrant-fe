@@ -24,7 +24,7 @@ use crate::types::{
     ExtensionRequest, PerformanceBond, ReferralCode, ReferralRecord, WhitelistEntry, WhitelistMode,
     WhitelistScope,
 };
-use soroban_sdk::{Address, Bytes, Env, Symbol, Vec};
+use soroban_sdk::{Address, Bytes, Env, String, Symbol, Vec};
 
 pub(crate) const PERSISTENT_TTL_THRESHOLD: u32 = 100_000;
 pub(crate) const PERSISTENT_TTL_EXTEND_TO: u32 = 1_000_000;
@@ -860,6 +860,21 @@ impl Storage {
         env.storage().persistent().set(
             &DataKey::User(UserKey::ReviewerProfile(profile.reviewer.clone())),
             profile,
+        );
+    }
+
+    /// Reviewers indexed under an exact expertise tag.
+    pub fn get_reviewer_tag_index(env: &Env, tag: &String) -> Vec<Address> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::User(UserKey::ReviewerTagIndex(tag.clone())))
+            .unwrap_or_else(|| Vec::new(env))
+    }
+
+    pub fn set_reviewer_tag_index(env: &Env, tag: &String, reviewers: &Vec<Address>) {
+        env.storage().persistent().set(
+            &DataKey::User(UserKey::ReviewerTagIndex(tag.clone())),
+            reviewers,
         );
     }
 
