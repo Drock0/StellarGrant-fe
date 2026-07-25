@@ -8,6 +8,34 @@ fn field(env: &Env, name: &str) -> String {
     String::from_str(env, name)
 }
 
+/// Render an integer as a decimal `String`.
+///
+/// `soroban_sdk` is `no_std` and ships no numeric-to-string conversion, so the
+/// digits are emitted by hand into a fixed buffer (itoa-style). Digits are
+/// accumulated in the negative domain so that `i128::MIN` stays representable.
+fn int_to_string(env: &Env, value: i128) -> String {
+    // 39 digits for i128::MIN plus the sign.
+    let mut buf = [0u8; 40];
+    let mut idx = buf.len();
+    let negative = value < 0;
+    let mut remaining = if negative { value } else { -value };
+
+    loop {
+        idx -= 1;
+        buf[idx] = b'0' + (-(remaining % 10)) as u8;
+        remaining /= 10;
+        if remaining == 0 {
+            break;
+        }
+    }
+    if negative {
+        idx -= 1;
+        buf[idx] = b'-';
+    }
+
+    String::from_bytes(env, &buf[idx..])
+}
+
 fn grant_to_version(
     env: &Env,
     grant: &Grant,
@@ -88,9 +116,9 @@ pub fn propose_amendment(
         } else if changed == description {
             previous_values.push_back(current.description.clone());
         } else if changed == total_amount {
-            previous_values.push_back(field(env, "current_total_amount"));
+            previous_values.push_back(int_to_string(env, current.total_amount));
         } else if changed == total_milestones {
-            previous_values.push_back(field(env, "current_total_milestones"));
+            previous_values.push_back(int_to_string(env, current.total_milestones as i128));
         } else {
             return Err(ContractError::InvalidInput);
         }
@@ -280,4 +308,158 @@ pub fn amendment_history(env: &Env, grant_id: u64) -> Vec<Amendment> {
         }
     }
     amendments
+}
+
+#[cfg(all(test, not(target_family = "wasm")))]
+mod tests {
+    use super::*;
+    use crate::types::GrantStatus;
+    use soroban_sdk::testutils::Address as _;
+    use soroban_sdk::vec;
+
+    fn seed_grant(env: &Env, owner: &Address, total_amount: i128, total_milestones: u32) -> u64 {
+        let grant = Grant {
+            id: 1,
+            owner: owner.clone(),
+            title: String::from_str(env, "Original title"),
+            description: String::from_str(env, "Original description"),
+            token: Address::generate(env),
+            status: GrantStatus::Active,
+            total_amount,
+            milestone_amount: total_amount / (total_milestones.max(1) as i128),
+            reviewers: Vec::new(env),
+            total_milestones,
+            milestones_paid_out: 0,
+            escrow_balance: total_amount,
+            funders: Vec::new(env),
+            reason: None,
+            timestamp: 0,
+            require_compliance: None,
+        };
+        Storage::set_grant(env, grant.id, &grant);
+        create_initial_version(env, &grant);
+        grant.id
+    }
+
+    #[test]
+    fn test_int_to_string_covers_sign_and_bounds() {
+        let env = Env::default();
+        assert_eq!(int_to_string(&env, 0), String::from_str(&env, "0"));
+        assert_eq!(int_to_string(&env, 7), String::from_str(&env, "7"));
+        assert_eq!(
+            int_to_string(&env, 5_000_000),
+            String::from_str(&env, "5000000")
+        );
+        assert_eq!(int_to_string(&env, -42), String::from_str(&env, "-42"));
+        assert_eq!(
+            int_to_string(&env, i128::MIN),
+            String::from_str(&env, "-170141183460469231731687303715884105728")
+        );
+        assert_eq!(
+            int_to_string(&env, i128::MAX),
+            String::from_str(&env, "170141183460469231731687303715884105727")
+        );
+    }
+
+    #[test]
+    fn test_propose_amendment_records_real_previous_total_amount() {
+        let env = Env::default();
+        let contract_id = env.register(crate::StellarGrantsContract, ());
+        let owner = Address::generate(&env);
+
+        env.as_contract(&contract_id, || {
+            let grant_id = seed_grant(&env, &owner, 5_000_000, 4);
+
+            let version = propose_amendment(
+                &env,
+                &owner,
+                grant_id,
+                vec![&env, String::from_str(&env, "total_amount")],
+                vec![&env, String::from_str(&env, "7000000")],
+                String::from_str(&env, "scope grew"),
+            )
+            .expect("amendment should be proposed");
+
+            let amendment =
+                Storage::get_amendment(&env, grant_id, version).expect("amendment should exist");
+            assert_eq!(
+                amendment.previous_values.get(0).unwrap(),
+                String::from_str(&env, "5000000")
+            );
+        });
+    }
+
+    #[test]
+    fn test_propose_amendment_records_real_previous_total_milestones() {
+        let env = Env::default();
+        let contract_id = env.register(crate::StellarGrantsContract, ());
+        let owner = Address::generate(&env);
+
+        env.as_contract(&contract_id, || {
+            let grant_id = seed_grant(&env, &owner, 5_000_000, 4);
+
+            let version = propose_amendment(
+                &env,
+                &owner,
+                grant_id,
+                vec![&env, String::from_str(&env, "total_milestones")],
+                vec![&env, String::from_str(&env, "6")],
+                String::from_str(&env, "more checkpoints"),
+            )
+            .expect("amendment should be proposed");
+
+            let amendment =
+                Storage::get_amendment(&env, grant_id, version).expect("amendment should exist");
+            assert_eq!(
+                amendment.previous_values.get(0).unwrap(),
+                String::from_str(&env, "4")
+            );
+        });
+    }
+
+    #[test]
+    fn test_propose_amendment_records_previous_values_for_all_fields() {
+        let env = Env::default();
+        let contract_id = env.register(crate::StellarGrantsContract, ());
+        let owner = Address::generate(&env);
+
+        env.as_contract(&contract_id, || {
+            let grant_id = seed_grant(&env, &owner, 1_234, 2);
+
+            let version = propose_amendment(
+                &env,
+                &owner,
+                grant_id,
+                vec![
+                    &env,
+                    String::from_str(&env, "title"),
+                    String::from_str(&env, "description"),
+                    String::from_str(&env, "total_amount"),
+                    String::from_str(&env, "total_milestones"),
+                ],
+                vec![
+                    &env,
+                    String::from_str(&env, "New title"),
+                    String::from_str(&env, "New description"),
+                    String::from_str(&env, "9999"),
+                    String::from_str(&env, "3"),
+                ],
+                String::from_str(&env, "full rewrite"),
+            )
+            .expect("amendment should be proposed");
+
+            let amendment =
+                Storage::get_amendment(&env, grant_id, version).expect("amendment should exist");
+            assert_eq!(
+                amendment.previous_values,
+                vec![
+                    &env,
+                    String::from_str(&env, "Original title"),
+                    String::from_str(&env, "Original description"),
+                    String::from_str(&env, "1234"),
+                    String::from_str(&env, "2"),
+                ]
+            );
+        });
+    }
 }

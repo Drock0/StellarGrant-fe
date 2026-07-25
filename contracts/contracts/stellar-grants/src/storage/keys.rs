@@ -1,5 +1,5 @@
 use crate::types::{ProtocolModule, RateLimitAction, Role, WhitelistScope};
-use soroban_sdk::{contracttype, Address, Bytes, Symbol};
+use soroban_sdk::{contracttype, Address, Bytes, String, Symbol};
 
 // ── Domain sub-enums ─────────────────────────────────────────────────────────
 
@@ -76,6 +76,8 @@ pub enum UserKey {
     GrantIds(Address),
     ReviewerProfile(Address),
     ReviewerRequest(u64, Address),
+    /// Reviewers registered under a given expertise tag (exact match).
+    ReviewerTagIndex(String),
     ReviewerRep(Address),
     ReviewerStake(u64, Address),
     ReviewerAllowlist,
