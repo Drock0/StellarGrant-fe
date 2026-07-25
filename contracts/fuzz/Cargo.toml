@@ -17,13 +17,6 @@ path = "../contracts/stellar-grants"
 version = "25"
 
 [[bin]]
-name = "fuzz_target_1"
-path = "fuzz_targets/fuzz_target_1.rs"
-test = false
-doc = false
-bench = false
-
-[[bin]]
 name = "grant_lifecycle"
 path = "fuzz_targets/grant_lifecycle.rs"
 test = false
