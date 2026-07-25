@@ -41,7 +41,9 @@ fn fetch_oracle_price(
     token: &Address,
 ) -> Result<(i128, u64), ContractError> {
     let client = OracleClient::new(env, oracle);
-    client.try_price(token).map_err(|_| ContractError::InvalidInput)
+    client
+        .try_price(token)
+        .map_err(|_| ContractError::InvalidInput)
 }
 
 /// Return the stored oracle config. Returns Err if not configured.

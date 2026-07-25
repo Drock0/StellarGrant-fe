@@ -650,9 +650,27 @@ impl StellarGrantsContract {
                 // Track this grant in the contributor's portfolio index (#565)
                 Storage::push_contributor_grant_id(&env, &grant.owner, grant_id);
                 // Award badges for milestone completion (#689)
-                badge::try_award(&env, &grant.owner, BadgeType::FirstMilestone, Some(grant_id), Some(milestone_idx));
-                badge::try_award(&env, &grant.owner, BadgeType::TenMilestones, Some(grant_id), Some(milestone_idx));
-                badge::try_award(&env, &grant.owner, BadgeType::FiftyMilestones, Some(grant_id), Some(milestone_idx));
+                badge::try_award(
+                    &env,
+                    &grant.owner,
+                    BadgeType::FirstMilestone,
+                    Some(grant_id),
+                    Some(milestone_idx),
+                );
+                badge::try_award(
+                    &env,
+                    &grant.owner,
+                    BadgeType::TenMilestones,
+                    Some(grant_id),
+                    Some(milestone_idx),
+                );
+                badge::try_award(
+                    &env,
+                    &grant.owner,
+                    BadgeType::FiftyMilestones,
+                    Some(grant_id),
+                    Some(milestone_idx),
+                );
             } else {
                 audit::log(
                     &env,

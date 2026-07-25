@@ -5,7 +5,12 @@ use crate::interfaces::{HookReceiverClient, OracleClient};
 
 /// Call a hook receiver contract's `on_hook` function using the typed interface.
 /// Returns false if the call fails (non-fatal).
-pub fn call_hook_receiver(env: &Env, contract: &Address, event_type: u32, payload: soroban_sdk::Bytes) -> bool {
+pub fn call_hook_receiver(
+    env: &Env,
+    contract: &Address,
+    event_type: u32,
+    payload: soroban_sdk::Bytes,
+) -> bool {
     let client = HookReceiverClient::new(env, contract);
     client.on_hook(contract, &event_type, &payload).is_ok()
 }
@@ -17,7 +22,9 @@ pub fn read_oracle_price(
     token: &Address,
 ) -> Result<(i128, u64), ContractError> {
     let client = OracleClient::new(env, oracle_contract);
-    client.try_price(token).map_err(|_| ContractError::InvalidInput)
+    client
+        .try_price(token)
+        .map_err(|_| ContractError::InvalidInput)
 }
 
 #[cfg(test)]
