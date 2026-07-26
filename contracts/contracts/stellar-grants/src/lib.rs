@@ -2377,6 +2377,33 @@ impl StellarGrantsContract {
         reviewer_pool::get_profile(&env, &reviewer)
     }
 
+    /// Find reviewers whose expertise tags include `tag` (exact match).
+    pub fn reviewer_find_by_tag(env: Env, tag: String, limit: u32) -> Vec<ReviewerProfile> {
+        reviewer_pool::find_by_tag(&env, &tag, limit)
+    }
+
+    /// Return the SLA record for a reviewer on a (grant, milestone), if any.
+    pub fn reviewer_get_sla(
+        env: Env,
+        reviewer: Address,
+        grant_id: u64,
+        milestone_idx: u32,
+    ) -> Option<reviewer_sla::ReviewerSlaRecord> {
+        let sla_id = reviewer_sla::milestone_sla_id(grant_id, milestone_idx);
+        reviewer_sla::get_sla(&env, &reviewer, sla_id)
+    }
+
+    /// Check (and mark) whether a reviewer's SLA for a milestone has been breached.
+    pub fn check_reviewer_sla(
+        env: Env,
+        reviewer: Address,
+        grant_id: u64,
+        milestone_idx: u32,
+    ) -> bool {
+        let sla_id = reviewer_sla::milestone_sla_id(grant_id, milestone_idx);
+        reviewer_sla::check_and_mark_breach(&env, &reviewer, sla_id)
+    }
+
     /// Get reviewer request.
     pub fn reviewer_get_request(
         env: Env,

@@ -106,7 +106,7 @@ mod tests {
 
     fn make_value(val: u32) -> ParamValue {
         ParamValue {
-            param_type: ParamType::Uint32,
+            param_type: ParamType::U32,
             u32_val: Some(val),
             i128_val: None,
             bool_val: None,
