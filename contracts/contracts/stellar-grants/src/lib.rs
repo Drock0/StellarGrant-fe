@@ -616,7 +616,7 @@ impl StellarGrantsContract {
             soroban_sdk::Vec::new(&env),
         );
 
-        reviewer_reward::record_participation(&env, &reviewer, grant_id, false);
+        reviewer_reward::record_participation(&env, &reviewer, grant_id, milestone_idx, false);
 
         if result.quorum_reached {
             if result.approved {

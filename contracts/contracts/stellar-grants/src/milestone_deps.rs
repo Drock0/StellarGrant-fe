@@ -1,6 +1,6 @@
 use crate::storage::Storage;
 use crate::types::{ContractError, MilestoneDag, MilestoneDependency, MilestoneState};
-use soroban_sdk::{Address, Env, Vec};
+use soroban_sdk::{Address, Env, Vec as SorobanVec};
 
 /// Check if a milestone can be submitted by verifying all dependencies are satisfied.
 /// A milestone can be submitted if all previous milestones have been approved.
@@ -22,136 +22,147 @@ pub fn can_submit(env: &Env, grant_id: u64, milestone_idx: u32) -> Result<(), Co
     Ok(())
 }
 
-/// Attach a dependency DAG to a grant, recording which milestones depend on which others.
+/// Attach a dependency graph (DAG) to a grant. Validates that dependencies
+/// reference valid milestone indices and stores the graph.
 pub fn attach_dag(
     env: &Env,
     _owner: &Address,
     grant_id: u64,
-    dependencies: Vec<MilestoneDependency>,
+    deps: SorobanVec<MilestoneDependency>,
 ) -> Result<(), ContractError> {
+    let grant = Storage::get_grant(env, grant_id).ok_or(ContractError::GrantNotFound)?;
+
+    for dep in deps.iter() {
+        if dep.milestone_idx >= grant.total_milestones {
+            return Err(ContractError::InvalidInput);
+        }
+        for parent in dep.depends_on.iter() {
+            if parent >= grant.total_milestones {
+                return Err(ContractError::InvalidInput);
+            }
+            if parent >= dep.milestone_idx {
+                return Err(ContractError::InvalidInput);
+            }
+        }
+    }
+
     let dag = MilestoneDag {
         grant_id,
-        dependencies,
+        dependencies: deps,
         is_valid: true,
     };
     Storage::set_milestone_dag(env, grant_id, &dag);
     Ok(())
 }
 
-/// Return the indices of milestones whose dependencies are all satisfied
-/// (every `depends_on` entry is approved) and which are not yet approved themselves.
-pub fn unblocked_milestones(env: &Env, grant_id: u64) -> Vec<u32> {
-    let mut result = Vec::new(env);
-
-    let dag = match Storage::get_milestone_dag(env, grant_id) {
-        Some(d) if d.is_valid => d,
-        _ => return result,
+/// Return the set of milestone indices whose dependencies are all satisfied.
+pub fn unblocked_milestones(env: &Env, grant_id: u64) -> SorobanVec<u32> {
+    let grant = match Storage::get_grant(env, grant_id) {
+        Some(g) => g,
+        None => return SorobanVec::new(env),
     };
+    let dag = Storage::get_milestone_dag(env, grant_id);
+    let mut result: SorobanVec<u32> = SorobanVec::new(env);
 
-    for dep in dag.dependencies.iter() {
-        // Skip already-approved milestones
-        if let Some(milestone) = Storage::get_milestone(env, grant_id, dep.milestone_idx) {
+    for idx in 0..grant.total_milestones {
+        if let Some(milestone) = Storage::get_milestone(env, grant_id, idx) {
             if milestone.state == MilestoneState::Approved {
                 continue;
             }
         }
-
-        // Check that every dependency is satisfied
-        let mut all_met = true;
-        for required_idx in dep.depends_on.iter() {
-            match Storage::get_milestone(env, grant_id, required_idx) {
-                Some(req_ms) if req_ms.state == MilestoneState::Approved => {}
-                _ => {
-                    all_met = false;
-                    break;
-                }
-            }
+        let blocked = match &dag {
+            Some(d) => d.dependencies.iter().any(|dep| {
+                dep.milestone_idx == idx
+                    && dep.depends_on.iter().any(|parent| {
+                        Storage::get_milestone(env, grant_id, parent)
+                            .map(|m| m.state != MilestoneState::Approved)
+                            .unwrap_or(true)
+                    })
+            }),
+            None => false,
+        };
+        if !blocked {
+            result.push_back(idx);
         }
+    }
+    result
+}
 
-        if all_met {
+/// Return milestone indices that directly depend on `idx`.
+pub fn dependents_of(env: &Env, grant_id: u64, idx: u32) -> SorobanVec<u32> {
+    let dag = match Storage::get_milestone_dag(env, grant_id) {
+        Some(d) => d,
+        None => return SorobanVec::new(env),
+    };
+    let mut result: SorobanVec<u32> = SorobanVec::new(env);
+    for dep in dag.dependencies.iter() {
+        if dep.depends_on.iter().any(|p| p == idx) {
             result.push_back(dep.milestone_idx);
         }
     }
-
     result
 }
 
-/// Return the indices of milestones that directly depend on the given milestone index.
-pub fn dependents_of(env: &Env, grant_id: u64, idx: u32) -> Vec<u32> {
-    let mut result = Vec::new(env);
-
-    let dag = match Storage::get_milestone_dag(env, grant_id) {
-        Some(d) if d.is_valid => d,
-        _ => return result,
-    };
-
-    for dep in dag.dependencies.iter() {
-        for required_idx in dep.depends_on.iter() {
-            if required_idx == idx {
-                result.push_back(dep.milestone_idx);
-                break;
-            }
-        }
-    }
-
-    result
-}
-
-/// Retrieve the full DAG for a grant, if one has been attached.
+/// Retrieve the stored DAG for a grant.
 pub fn get_dag(env: &Env, grant_id: u64) -> Option<MilestoneDag> {
     Storage::get_milestone_dag(env, grant_id)
 }
 
-/// Compute a topological ordering of the dependency graph.
-/// Returns indices in an order where every milestone appears after its dependencies.
+/// Compute a topological ordering of milestones given a set of dependencies.
+/// Returns an error if a cycle is detected.
 pub fn topological_order(
     env: &Env,
-    dependencies: &Vec<MilestoneDependency>,
+    deps: &SorobanVec<MilestoneDependency>,
     total: u32,
-) -> Result<Vec<u32>, ContractError> {
-    let mut in_degree = soroban_sdk::Map::<u32, u32>::new(env);
-    for i in 0..total {
-        in_degree.set(i, 0);
-    }
-    for dep in dependencies.iter() {
-        let count = dep.depends_on.len() as u32;
-        in_degree.set(
-            dep.milestone_idx,
-            in_degree.get(dep.milestone_idx).unwrap_or(0) + count,
-        );
+) -> Result<SorobanVec<u32>, ContractError> {
+    let n = total;
+    let mut in_degree: SorobanVec<u32> = SorobanVec::new(env);
+    let mut adj: SorobanVec<SorobanVec<u32>> = SorobanVec::new(env);
+
+    for i in 0..n {
+        in_degree.push_back(0u32);
+        adj.push_back(SorobanVec::new(env));
     }
 
-    let mut queue = Vec::new(env);
-    for i in 0..total {
-        if in_degree.get(i).unwrap_or(0) == 0 {
-            queue.push_back(i);
-        }
-    }
-
-    let mut sorted = Vec::new(env);
-    let mut q_idx = 0;
-    while q_idx < queue.len() {
-        let node = queue.get(q_idx).unwrap();
-        q_idx += 1;
-        sorted.push_back(node);
-
-        for dep in dependencies.iter() {
-            for req in dep.depends_on.iter() {
-                if req == node {
-                    let deg = in_degree.get(dep.milestone_idx).unwrap_or(0);
-                    in_degree.set(dep.milestone_idx, deg - 1);
-                    if deg == 1 {
-                        queue.push_back(dep.milestone_idx);
-                    }
-                    break;
-                }
+    for dep in deps.iter() {
+        let u = dep.milestone_idx;
+        for parent in dep.depends_on.iter() {
+            let p = parent;
+            if p < n && u < n {
+                let mut neighbors = adj.get(p).unwrap();
+                neighbors.push_back(u);
+                adj.set(p, neighbors);
+                let mut deg = in_degree.get(u).unwrap();
+                deg += 1;
+                in_degree.set(u, deg);
             }
         }
     }
 
-    if sorted.len() != total {
-        return Err(ContractError::DependencyNotSatisfied);
+    let mut queue: SorobanVec<u32> = SorobanVec::new(env);
+    for i in 0..n {
+        if in_degree.get(i).unwrap() == 0 {
+            queue.push_back(i);
+        }
     }
 
-    Ok(sorted)
+    let mut order: SorobanVec<u32> = SorobanVec::new(env);
+    while let Some(node) = queue.pop_back() {
+        order.push_back(node);
+        let neighbors = adj.get(node).unwrap();
+        for next in neighbors.iter() {
+            let mut deg = in_degree.get(next).unwrap();
+            deg = deg.saturating_sub(1);
+            in_degree.set(next, deg);
+            if deg == 0 {
+                queue.push_back(next);
+            }
+        }
+    }
+
+    if order.len() != n {
+        return Err(ContractError::InvalidInput);
+    }
+
+    Ok(order)
 }

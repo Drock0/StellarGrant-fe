@@ -1,4 +1,5 @@
 use crate::errors::ContractError;
+use crate::reviewer_sla;
 use crate::storage::keys::{DataKey, ReviewerRewardKey};
 use crate::types::{ReviewParticipation, ReviewerRewardPool, ReviewerRewardRecord};
 use soroban_sdk::{token, Address, Env, Vec};
@@ -36,7 +37,22 @@ pub fn fund_pool(env: &Env, token: &Address, amount: i128) {
 }
 
 /// Record a reviewer's participation in a milestone vote.
-pub fn record_participation(env: &Env, reviewer: &Address, grant_id: u64, was_fast: bool) {
+///
+/// A reviewer who breached their SLA for this milestone (issue #611) accrues
+/// nothing for it: the vote still counts toward the milestone outcome, but it
+/// earns no participation credit and therefore no share of the reward pool.
+pub fn record_participation(
+    env: &Env,
+    reviewer: &Address,
+    grant_id: u64,
+    milestone_idx: u32,
+    was_fast: bool,
+) {
+    let sla_id = reviewer_sla::milestone_sla_id(grant_id, milestone_idx);
+    if reviewer_sla::check_and_mark_breach(env, reviewer, sla_id) {
+        return;
+    }
+
     let part_key =
         DataKey::ReviewerReward(ReviewerRewardKey::Participation(reviewer.clone(), grant_id));
 
@@ -254,12 +270,12 @@ mod tests {
         let env = soroban_sdk::Env::default();
         let reviewer = Address::generate(&env);
 
-        record_participation(&env, &reviewer, 1, false);
+        record_participation(&env, &reviewer, 1, 0, false);
         let part = get_participation(&env, &reviewer, 1).expect("Participation should exist");
         assert_eq!(part.votes_cast, 1);
         assert_eq!(part.fast_votes, 0);
 
-        record_participation(&env, &reviewer, 1, true);
+        record_participation(&env, &reviewer, 1, 0, true);
         let part = get_participation(&env, &reviewer, 1).expect("Participation should exist");
         assert_eq!(part.votes_cast, 2);
         assert_eq!(part.fast_votes, 1);
@@ -272,10 +288,10 @@ mod tests {
         let reviewer2 = Address::generate(&env);
 
         // Reviewer 1 votes slowly
-        record_participation(&env, &reviewer1, 1, false);
+        record_participation(&env, &reviewer1, 1, 0, false);
 
         // Reviewer 2 votes quickly
-        record_participation(&env, &reviewer2, 1, true);
+        record_participation(&env, &reviewer2, 1, 0, true);
 
         let part1 = get_participation(&env, &reviewer1, 1).expect("Should exist");
         let part2 = get_participation(&env, &reviewer2, 1).expect("Should exist");
@@ -358,8 +374,8 @@ mod tests {
         assert_eq!(pool_balance(&env, &token), 800);
 
         // Each reviewer tracks separately
-        record_participation(&env, &reviewer1, 1, true);
-        record_participation(&env, &reviewer2, 1, false);
+        record_participation(&env, &reviewer1, 1, 0, true);
+        record_participation(&env, &reviewer2, 1, 0, false);
 
         let part1 = get_participation(&env, &reviewer1, 1).expect("Should exist");
         let part2 = get_participation(&env, &reviewer2, 1).expect("Should exist");

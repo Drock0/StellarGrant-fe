@@ -3,6 +3,7 @@ use soroban_sdk::{Address, Env, String};
 use crate::constants::MAX_BIO_LEN;
 use crate::events::Events;
 use crate::quadratic;
+use crate::reviewer_sla;
 use crate::storage::Storage;
 use crate::types::{ContractError, Grant, Milestone, MilestoneState, VotingMechanism};
 
@@ -10,6 +11,18 @@ pub struct VoteResult {
     pub approved: bool,
     pub quorum_reached: bool,
     pub approval_pct: u32,
+}
+
+/// Resolve the reviewer's SLA for this milestone (issue #611).
+///
+/// The breach check runs first so that a vote cast after the deadline is
+/// recorded as a breach — `fulfill_sla` is then a no-op on the breached
+/// record, and the reviewer forfeits reward accrual for the milestone.
+/// A no-op when the reviewer has no SLA record for this milestone.
+fn settle_sla(env: &Env, reviewer: &Address, grant_id: u64, milestone_idx: u32) {
+    let sla_id = reviewer_sla::milestone_sla_id(grant_id, milestone_idx);
+    reviewer_sla::check_and_mark_breach(env, reviewer, sla_id);
+    reviewer_sla::fulfill_sla(env, reviewer, sla_id);
 }
 
 /// Cast a vote (approve = true, reject = false) on a milestone.
@@ -53,6 +66,7 @@ pub fn cast_vote(
                 },
             );
         }
+        settle_sla(env, reviewer, grant.id, milestone.idx);
         Events::milestone_voted(
             env,
             grant.id,
@@ -127,6 +141,8 @@ pub fn cast_vote(
         };
         Events::milestone_status_changed(env, grant_id, milestone_idx, new_state);
     }
+
+    settle_sla(env, reviewer, grant.id, milestone.idx);
 
     Events::milestone_voted(
         env,

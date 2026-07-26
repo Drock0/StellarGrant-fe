@@ -1,8 +1,39 @@
+use crate::constants::DEFAULT_REVIEWER_SLA_SECONDS;
+use crate::reviewer_sla;
 use crate::storage::Storage;
 use crate::types::{
     ContractError, ReviewerAvailability, ReviewerProfile, ReviewerRequest, ReviewerRequestStatus,
 };
 use soroban_sdk::{Address, Env, String, Vec};
+
+/// Upper bound on results returned by [`find_by_tag`], to keep the scan bounded.
+const MAX_TAG_QUERY_RESULTS: u32 = 50;
+
+/// Drop `reviewer` from the index of every tag in `tags`.
+fn unindex_tags(env: &Env, reviewer: &Address, tags: &Vec<String>) {
+    for tag in tags.iter() {
+        let index = Storage::get_reviewer_tag_index(env, &tag);
+        let mut filtered = Vec::new(env);
+        for indexed in index.iter() {
+            if indexed != *reviewer {
+                filtered.push_back(indexed);
+            }
+        }
+        Storage::set_reviewer_tag_index(env, &tag, &filtered);
+    }
+}
+
+/// Add `reviewer` to the index of every tag in `tags`, skipping duplicates.
+fn index_tags(env: &Env, reviewer: &Address, tags: &Vec<String>) {
+    for tag in tags.iter() {
+        let mut index = Storage::get_reviewer_tag_index(env, &tag);
+        if index.iter().any(|indexed| indexed == *reviewer) {
+            continue;
+        }
+        index.push_back(reviewer.clone());
+        Storage::set_reviewer_tag_index(env, &tag, &index);
+    }
+}
 
 pub fn register_reviewer(
     env: &Env,
@@ -16,7 +47,7 @@ pub fn register_reviewer(
     let profile = ReviewerProfile {
         reviewer: reviewer.clone(),
         display_name,
-        expertise_tags,
+        expertise_tags: expertise_tags.clone(),
         hourly_rate,
         reviews_completed: 0,
         average_turnaround_ledgers: 0,
@@ -25,7 +56,13 @@ pub fn register_reviewer(
         reputation_score: Storage::get_reviewer_reputation(env, reviewer.clone()),
     };
 
+    // Re-registering replaces the tag set, so retire the previous entries first.
+    if let Some(existing) = Storage::get_reviewer_profile(env, reviewer) {
+        unindex_tags(env, reviewer, &existing.expertise_tags);
+    }
+
     Storage::set_reviewer_profile(env, &profile);
+    index_tags(env, reviewer, &expertise_tags);
     Ok(())
 }
 
@@ -97,6 +134,22 @@ pub fn accept_request(env: &Env, reviewer: &Address, grant_id: u64) -> Result<()
     grant.reviewers.push_back(reviewer.clone());
     Storage::set_grant(env, grant_id, &grant);
 
+    // Issue #611: accepting an assignment starts the review clock. Every
+    // milestone the reviewer is now on the hook for gets its own SLA record;
+    // missing the deadline forfeits reward accrual for that milestone.
+    let deadline = env
+        .ledger()
+        .timestamp()
+        .saturating_add(DEFAULT_REVIEWER_SLA_SECONDS);
+    for milestone_idx in 0..grant.total_milestones {
+        reviewer_sla::register_sla(
+            env,
+            reviewer,
+            reviewer_sla::milestone_sla_id(grant_id, milestone_idx),
+            deadline,
+        );
+    }
+
     let mut updated_request = request;
     updated_request.status = ReviewerRequestStatus::Accepted;
     Storage::set_reviewer_request(env, &updated_request);
@@ -119,8 +172,30 @@ pub fn decline_request(env: &Env, reviewer: &Address, grant_id: u64) -> Result<(
     Ok(())
 }
 
-pub fn find_by_tag(_env: &Env, _tag: &String, _limit: u32) -> Vec<ReviewerProfile> {
-    Vec::new(_env)
+/// Return up to `limit` reviewer profiles whose `expertise_tags` contain `tag`.
+///
+/// Backed by the per-tag index maintained by [`register_reviewer`]; matching is
+/// an exact, case-sensitive comparison on the tag string.
+pub fn find_by_tag(env: &Env, tag: &String, limit: u32) -> Vec<ReviewerProfile> {
+    let limit = limit.min(MAX_TAG_QUERY_RESULTS);
+    let mut result = Vec::new(env);
+    if limit == 0 {
+        return result;
+    }
+
+    for reviewer in Storage::get_reviewer_tag_index(env, tag).iter() {
+        if let Some(profile) = Storage::get_reviewer_profile(env, &reviewer) {
+            // The index is authoritative, but guard against a stale entry.
+            if profile.expertise_tags.iter().any(|t| t == *tag) {
+                result.push_back(profile);
+                if result.len() >= limit {
+                    break;
+                }
+            }
+        }
+    }
+
+    result
 }
 
 pub fn get_profile(env: &Env, reviewer: &Address) -> Option<ReviewerProfile> {
@@ -129,4 +204,164 @@ pub fn get_profile(env: &Env, reviewer: &Address) -> Option<ReviewerProfile> {
 
 pub fn get_request(env: &Env, grant_id: u64, reviewer: &Address) -> Option<ReviewerRequest> {
     Storage::get_reviewer_request(env, grant_id, reviewer)
+}
+
+#[cfg(all(test, not(target_family = "wasm")))]
+mod tests {
+    use super::*;
+    use crate::{StellarGrantsContract, StellarGrantsContractClient};
+    use soroban_sdk::testutils::Address as _;
+    use soroban_sdk::vec;
+
+    fn tag(env: &Env, s: &str) -> String {
+        String::from_str(env, s)
+    }
+
+    fn setup<'a>() -> (Env, StellarGrantsContractClient<'a>) {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(StellarGrantsContract, ());
+        let client = StellarGrantsContractClient::new(&env, &contract_id);
+        (env, client)
+    }
+
+    fn register(
+        env: &Env,
+        client: &StellarGrantsContractClient<'_>,
+        name: &str,
+        tags: Vec<String>,
+    ) -> Address {
+        let reviewer = Address::generate(env);
+        client.reviewer_register(&reviewer, &String::from_str(env, name), &tags, &None);
+        reviewer
+    }
+
+    fn addresses(profiles: &Vec<ReviewerProfile>) -> soroban_sdk::Vec<Address> {
+        let mut out = soroban_sdk::Vec::new(profiles.env());
+        for p in profiles.iter() {
+            out.push_back(p.reviewer);
+        }
+        out
+    }
+
+    #[test]
+    fn test_find_by_tag_returns_only_reviewers_with_that_tag() {
+        let (env, client) = setup();
+
+        let rustacean = register(
+            &env,
+            &client,
+            "Rustacean",
+            vec![&env, tag(&env, "rust"), tag(&env, "security")],
+        );
+        let designer = register(&env, &client, "Designer", vec![&env, tag(&env, "design")]);
+        let auditor = register(
+            &env,
+            &client,
+            "Auditor",
+            vec![&env, tag(&env, "security"), tag(&env, "solidity")],
+        );
+
+        let rust_hits = client.reviewer_find_by_tag(&tag(&env, "rust"), &10);
+        assert_eq!(addresses(&rust_hits), vec![&env, rustacean.clone()]);
+
+        let security_hits = client.reviewer_find_by_tag(&tag(&env, "security"), &10);
+        assert_eq!(
+            addresses(&security_hits),
+            vec![&env, rustacean, auditor.clone()]
+        );
+
+        let design_hits = client.reviewer_find_by_tag(&tag(&env, "design"), &10);
+        assert_eq!(addresses(&design_hits), vec![&env, designer]);
+
+        let solidity_hits = client.reviewer_find_by_tag(&tag(&env, "solidity"), &10);
+        assert_eq!(addresses(&solidity_hits), vec![&env, auditor]);
+    }
+
+    #[test]
+    fn test_find_by_tag_returns_full_profiles() {
+        let (env, client) = setup();
+
+        let reviewer = register(&env, &client, "Rustacean", vec![&env, tag(&env, "rust")]);
+
+        let hits = client.reviewer_find_by_tag(&tag(&env, "rust"), &10);
+        assert_eq!(hits.len(), 1);
+        let profile = hits.get(0).unwrap();
+        assert_eq!(profile.reviewer, reviewer);
+        assert_eq!(profile.display_name, String::from_str(&env, "Rustacean"));
+        assert_eq!(profile.expertise_tags, vec![&env, tag(&env, "rust")]);
+    }
+
+    #[test]
+    fn test_find_by_tag_unknown_tag_is_empty() {
+        let (env, client) = setup();
+        register(&env, &client, "Rustacean", vec![&env, tag(&env, "rust")]);
+
+        assert_eq!(
+            client.reviewer_find_by_tag(&tag(&env, "cobol"), &10).len(),
+            0
+        );
+        // Matching is exact and case-sensitive.
+        assert_eq!(
+            client.reviewer_find_by_tag(&tag(&env, "Rust"), &10).len(),
+            0
+        );
+        assert_eq!(client.reviewer_find_by_tag(&tag(&env, "rus"), &10).len(), 0);
+    }
+
+    #[test]
+    fn test_find_by_tag_respects_limit() {
+        let (env, client) = setup();
+        for i in 0..3 {
+            let _ = i;
+            register(&env, &client, "R", vec![&env, tag(&env, "rust")]);
+        }
+
+        assert_eq!(client.reviewer_find_by_tag(&tag(&env, "rust"), &0).len(), 0);
+        assert_eq!(client.reviewer_find_by_tag(&tag(&env, "rust"), &2).len(), 2);
+        assert_eq!(
+            client.reviewer_find_by_tag(&tag(&env, "rust"), &100).len(),
+            3
+        );
+    }
+
+    #[test]
+    fn test_reregistering_replaces_the_indexed_tags() {
+        let (env, client) = setup();
+        let reviewer = register(&env, &client, "Rustacean", vec![&env, tag(&env, "rust")]);
+
+        client.reviewer_register(
+            &reviewer,
+            &String::from_str(&env, "Rustacean"),
+            &vec![&env, tag(&env, "design")],
+            &None,
+        );
+
+        assert_eq!(
+            client.reviewer_find_by_tag(&tag(&env, "rust"), &10).len(),
+            0
+        );
+        assert_eq!(
+            addresses(&client.reviewer_find_by_tag(&tag(&env, "design"), &10)),
+            vec![&env, reviewer]
+        );
+    }
+
+    #[test]
+    fn test_reregistering_same_tag_does_not_duplicate() {
+        let (env, client) = setup();
+        let reviewer = register(&env, &client, "Rustacean", vec![&env, tag(&env, "rust")]);
+
+        client.reviewer_register(
+            &reviewer,
+            &String::from_str(&env, "Rustacean v2"),
+            &vec![&env, tag(&env, "rust")],
+            &None,
+        );
+
+        assert_eq!(
+            client.reviewer_find_by_tag(&tag(&env, "rust"), &10).len(),
+            1
+        );
+    }
 }
