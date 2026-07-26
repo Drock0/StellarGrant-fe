@@ -1,4 +1,4 @@
-use soroban_sdk::{Address, Env};
+use soroban_sdk::{Address, Env, Symbol, Val, Vec};
 
 use crate::errors::ContractError;
 use crate::interfaces::{HookReceiverClient, OracleClient};
@@ -25,6 +25,23 @@ pub fn read_oracle_price(
     client
         .try_price(token)
         .map_err(|_| ContractError::InvalidInput)?
+        .map_err(|_| ContractError::InvalidInput)
+}
+
+/// Safely invoke a contract method by symbol, returning `Err` on trap/wrong
+/// type/missing contract instead of aborting the whole transaction.
+///
+/// Restored from the pre-merge branch — used by `relay::dispatch_action`
+/// to invoke `contributor_register` / `milestone_submit` on the same
+/// contract as `RelayableAction::ContributorRegister` / `MilestoneSubmit`.
+pub fn safe_call(
+    env: &Env,
+    contract: &Address,
+    symbol: &Symbol,
+    args: Vec<Val>,
+) -> Result<(), ContractError> {
+    env.try_invoke_contract::<soroban_sdk::Error, Val>(contract, symbol, args)
+        .map(|_| ())
         .map_err(|_| ContractError::InvalidInput)
 }
 

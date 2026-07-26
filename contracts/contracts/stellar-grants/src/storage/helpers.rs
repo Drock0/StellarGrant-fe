@@ -848,6 +848,14 @@ impl Storage {
             .set(&DataKey::RelayNonce(address.clone()), &nonce);
     }
 
+    /// Append a `RelayRecord` for a successfully dispatched relay action (#694).
+    /// The historical set of records lets auditors verify that each nonce
+    /// corresponded to an action that actually ran (not just bookkeeping).
+    pub fn set_relay_record(env: &Env, record: &crate::types::RelayRecord) {
+        let key = DataKey::RelayRecord(record.sender.clone(), record.relayed_at, record.nonce);
+        env.storage().persistent().set(&key, record);
+    }
+
     // ── Issue #567: Reviewer Pool Module ──────────────────────────────────────
 
     pub fn get_reviewer_profile(env: &Env, reviewer: &Address) -> Option<ReviewerProfile> {

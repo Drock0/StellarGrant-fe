@@ -738,6 +738,67 @@ pub struct RelayRecord {
     pub reimbursement_paid: i128,
 }
 
+/// Typed dispatch payload for `relay::execute_relayed` (#694).
+///
+/// Each variant carries the typed parameters required to actually perform the
+/// relayed action on behalf of `sender`. The relay entry point used to take an
+/// opaque `Bytes` payload that was never inspected; the new typed envelope makes
+/// the "actually dispatch" guarantee explicit at the type-system level and lets
+/// the relay module route to the right internal handler.
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RelayDispatch {
+    ContributorRegister(ContributorRegisterPayload),
+    MilestoneSubmit(MilestoneSubmitPayload),
+    ClaimVested(ClaimVestedPayload),
+    WithdrawStream(WithdrawStreamPayload),
+}
+
+impl RelayDispatch {
+    /// The `RelayableAction` tag this dispatch variant corresponds to.
+    /// Lets the relay module verify a relayer's claimed action matches the
+    /// actual payload variant with a single equality compare instead of a
+    /// parallel `matches!` arm list that can drift apart over time.
+    pub fn action_tag(&self) -> RelayableAction {
+        match self {
+            RelayDispatch::ContributorRegister(_) => RelayableAction::ContributorRegister,
+            RelayDispatch::MilestoneSubmit(_) => RelayableAction::MilestoneSubmit,
+            RelayDispatch::ClaimVested(_) => RelayableAction::ClaimVested,
+            RelayDispatch::WithdrawStream(_) => RelayableAction::WithdrawStream,
+        }
+    }
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ContributorRegisterPayload {
+    pub name: String,
+    pub bio: String,
+    pub skills: Vec<String>,
+    pub github_url: String,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MilestoneSubmitPayload {
+    pub grant_id: u64,
+    pub milestone_idx: u32,
+    pub description: String,
+    pub proof_url: String,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ClaimVestedPayload {
+    pub grant_id: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WithdrawStreamPayload {
+    pub stream_id: u32,
+}
+
 // ── Issue #567: Decentralized Reviewer Recruitment Marketplace ──────────────
 
 #[contracttype]
@@ -1337,6 +1398,11 @@ pub struct AnalyticsSnapshot {
     pub top_category_id: Option<u32>,
     pub tvl_7day_growth_bps: i128,
     pub snapshot_at: u64,
+    /// Ledger sequence at which the snapshot was captured (#695).
+    /// `analytics::get_snapshot` compares the current ledger sequence
+    /// against this value (not a fresh `env.ledger().sequence()` call) to
+    /// decide whether to rebuild the cached snapshot.
+    pub captured_at_ledger: u32,
 }
 
 // ── Issue #596: Dynamic On-Chain Protocol Parameter Store ─────────────────────

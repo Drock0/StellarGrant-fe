@@ -48,7 +48,7 @@ mod escrow_multisig;
 mod events;
 mod evidence_schema;
 mod factory;
-pub mod fees;
+mod fees;
 mod fork;
 mod funder_report;
 mod governance;
@@ -115,36 +115,37 @@ pub use types::{
     ArbitrationCase, AuditAction, AuditEntry, AutoApproveConfig, AutoApproveRecord, BadgeType,
     BatchItemResult, BatchMilestoneVote, BatchResult, BondClaim, BondStatus, BountyGrant,
     BountyStatus, BountySubmission, BreakerState, BridgeRelayer, CategoryStats, ChainId,
-    ChecklistSubmission, ClawbackRequest, ClawbackStatus, CollateralDeposit, CollateralRequirement,
-    CollateralStatus, ComplianceAttestation, ComplianceLevel, ComplianceStatus, ConditionResult,
-    ContractVersion, ContributionType, ContributorPortfolio, CriterionStatus, CrossChainProof,
-    CrowdfundCampaign, CrowdfundPledge, CrowdfundStatus, DashboardView, DecayConfig, DecayType,
-    DexConfig, Dispute, DisputeStatus, EscrowAccount, EscrowLifecycleState, EscrowMode,
-    EscrowReleaseApproval, EscrowReleaseRequest, EscrowState, EvidenceField, EvidenceFieldType,
-    EvidenceSchema, ExportGrant, ExportGrantPage, ExportMilestone, ExportMilestonePage,
-    ExtensionRequest, ExtensionStatus, FeeRecord, ForkRecord, FunderGrantSummary, FunderLedger,
-    FunderReport, FunderTokenSummary, Grant, GrantArchetype, GrantCard, GrantCategory,
-    GrantDetailView, GrantFund, GrantPortfolio, GrantStatus, GrantSummary, GrantTag, GrantTemplate,
-    GrantVersion, HookCallResult, HookEvent, HookRegistration, InsuranceClaim, InsurancePolicy,
-    Invoice, InvoiceStatus, IpRights, LicenseRecord, LicenseType, LineItem, LockupRecord,
-    LockupStatus, MatchingAllocation, MatchingContribution, MatchingRound, MerkleCommitment,
-    MerkleProof, MigrationRecord, Milestone, MilestoneDag, MilestoneDependency, MilestoneNft,
-    MilestoneState, MilestoneSubmission, MilestoneTemplate, MultiGrantBatchResult,
+    ChecklistSubmission, ClaimVestedPayload, ClawbackRequest, ClawbackStatus, CollateralDeposit,
+    CollateralRequirement, CollateralStatus, ComplianceAttestation, ComplianceLevel,
+    ComplianceStatus, ConditionResult, ContractVersion, ContributionType, ContributorPortfolio,
+    ContributorRegisterPayload, CriterionStatus, CrossChainProof, CrowdfundCampaign,
+    CrowdfundPledge, CrowdfundStatus, DashboardView, DecayConfig, DecayType, DexConfig, Dispute,
+    DisputeStatus, EscrowAccount, EscrowLifecycleState, EscrowMode, EscrowReleaseApproval,
+    EscrowReleaseRequest, EscrowState, EvidenceField, EvidenceFieldType, EvidenceSchema,
+    ExportGrant, ExportGrantPage, ExportMilestone, ExportMilestonePage, ExtensionRequest,
+    ExtensionStatus, FeeRecord, ForkRecord, FunderGrantSummary, FunderLedger, FunderReport,
+    FunderTokenSummary, Grant, GrantArchetype, GrantCard, GrantCategory, GrantDetailView,
+    GrantFund, GrantPortfolio, GrantStatus, GrantSummary, GrantTag, GrantTemplate, GrantVersion,
+    HookCallResult, HookEvent, HookRegistration, InsuranceClaim, InsurancePolicy, Invoice,
+    InvoiceStatus, IpRights, LicenseRecord, LicenseType, LineItem, LockupRecord, LockupStatus,
+    MatchingAllocation, MatchingContribution, MatchingRound, MerkleCommitment, MerkleProof,
+    MigrationRecord, Milestone, MilestoneDag, MilestoneDependency, MilestoneNft, MilestoneState,
+    MilestoneSubmission, MilestoneSubmitPayload, MilestoneTemplate, MultiGrantBatchResult,
     MultisigProposal, MultisigSigner, NftMetadata, NotificationEvent, OracleConfig, ParamRecord,
     ParamType, ParamValue, PauseRecord, PaymentSplit, PaymentStream, PerformanceBond,
     PortfolioFilter, PortfolioStats, PriceQuote, ProtocolConfig, ProtocolMetrics, ProtocolModule,
     ProvenanceRecord, PublicReview, PublicReviewSignal, QuadraticVoteRecord, RateLimitAction,
     ReferralCode, ReferralRecord, ReferralReward, RegistryEntry, RegistryEntryType, RelayAllowance,
-    RelayConfig, RelayRecord, RelayableAction, ReleaseCondition, RenewalProposal, RenewalStatus,
-    ReputationTier, RevenueEpoch, ReviewParticipation, ReviewerAvailability, ReviewerProfile,
-    ReviewerRequest, ReviewerRequestStatus, ReviewerRewardPool, ReviewerRewardRecord, ReviewerView,
-    Role, RoleAssignment, RollingWindow, ScoreResult, ScoringDimension, ScoringRubric,
-    ScoringWeight, SignatureStatus, SplitRecipient, StakerEpochRecord, StructuredEvidence,
-    Subscription, SubscriptionScope, SwapResult, SwapRoute, SyndicateGrant, SyndicateMember,
-    SyndicateStatus, TemplateCategory, TimerRecord, TimerTriggerType, TokenMetric,
-    TransferProposal, TransferableRole, VerificationAttestation, VerificationLevel,
-    VerificationStatus, VoiceCredits, VotingMechanism, WaitlistConfig, WaitlistEntry,
-    WhitelistEntry, WhitelistMode, WhitelistScope,
+    RelayConfig, RelayDispatch, RelayRecord, RelayableAction, ReleaseCondition, RenewalProposal,
+    RenewalStatus, ReputationTier, RevenueEpoch, ReviewParticipation, ReviewerAvailability,
+    ReviewerProfile, ReviewerRequest, ReviewerRequestStatus, ReviewerRewardPool,
+    ReviewerRewardRecord, ReviewerView, Role, RoleAssignment, RollingWindow, ScoreResult,
+    ScoringDimension, ScoringRubric, ScoringWeight, SignatureStatus, SplitRecipient,
+    StakerEpochRecord, StructuredEvidence, Subscription, SubscriptionScope, SwapResult, SwapRoute,
+    SyndicateGrant, SyndicateMember, SyndicateStatus, TemplateCategory, TimerRecord,
+    TimerTriggerType, TokenMetric, TransferProposal, TransferableRole, VerificationAttestation,
+    VerificationLevel, VerificationStatus, VoiceCredits, VotingMechanism, WaitlistConfig,
+    WaitlistEntry, WhitelistEntry, WhitelistMode, WhitelistScope, WithdrawStreamPayload,
 };
 
 use metrics::MetricField;
@@ -516,11 +517,6 @@ impl StellarGrantsContract {
                 // revenue-share pool, and treasury) before passing the net
                 // amount to the grant recipient or split recipients.
                 let net_amount = fees::deduct_and_split_fee(env, &grant.token, ms.amount)?;
-                // Issue #569: a payout is the qualifying first action for a
-                // referred contributor — credit their referrer out of the fee
-                // this payout generated. No-op after the first paid reward.
-                let fee_amount = math::safe_sub(ms.amount, net_amount)?;
-                referral::trigger_reward(env, &grant.owner, &grant.token, fee_amount)?;
                 if split_payment::has_split(env, grant_id, idx) {
                     split_payment::execute_split(env, grant_id, idx, net_amount)?;
                 } else {
@@ -2261,16 +2257,47 @@ impl StellarGrantsContract {
         relay::set_relay_config(&env, &admin, config)
     }
 
-    /// Execute a relayed action on behalf of sender.
+    /// Execute a relayed action on behalf of sender (#694).
+    ///
+    /// `dispatch` is a typed envelope carrying the per-action parameters
+    /// (see `RelayDispatch`). The relay module verifies that the dispatched
+    /// variant matches the requested `action`, authenticates the sender as
+    /// well as the relayer, gates on the `ProtocolModule::Relay` circuit
+    /// breaker, and only burns the sender's nonce / daily quota *after* the
+    /// action is actually performed.
     pub fn relay_execute(
         env: Env,
         relayer: Address,
         sender: Address,
         action: RelayableAction,
         nonce: u32,
-        payload: Bytes,
+        dispatch: RelayDispatch,
     ) -> Result<(), ContractError> {
-        relay::execute_relayed(&env, &relayer, &sender, action, nonce, payload)
+        relay::execute_relayed(&env, &relayer, &sender, action, nonce, dispatch)
+    }
+
+    /// Configure the protocol-wide relay parameters (admin only).
+    pub fn set_relay_config(
+        env: Env,
+        admin: Address,
+        config: RelayConfig,
+    ) -> Result<(), ContractError> {
+        relay::set_relay_config(&env, &admin, config)
+    }
+
+    /// Read the per-sender relay quota (debugging / monitoring).
+    pub fn get_relay_allowance(env: Env, sender: Address) -> RelayAllowance {
+        relay::get_allowance(&env, &sender)
+    }
+
+    /// Read the protocol-wide relay configuration.
+    pub fn get_relay_config(env: Env) -> Option<RelayConfig> {
+        relay::get_relay_config(&env)
+    }
+
+    /// Check whether a relay is currently allowed for a given (sender, action).
+    pub fn can_relay(env: Env, sender: Address, action: RelayableAction) -> bool {
+        relay::can_relay(&env, &sender, &action)
     }
 
     /// Check if relay is allowed for an address and action.
@@ -2357,42 +2384,6 @@ impl StellarGrantsContract {
         reviewer: Address,
     ) -> Option<ReviewerRequest> {
         reviewer_pool::get_request(&env, grant_id, &reviewer)
-    }
-
-    /// Find up to `limit` reviewers registered under an expertise tag.
-    pub fn reviewer_find_by_tag(env: Env, tag: String, limit: u32) -> Vec<ReviewerProfile> {
-        reviewer_pool::find_by_tag(&env, &tag, limit)
-    }
-
-    // ── Issue #611: Reviewer SLA enforcement ────────────────────────────────
-
-    /// Return a reviewer's SLA record for a milestone, if one was registered.
-    pub fn reviewer_get_sla(
-        env: Env,
-        reviewer: Address,
-        grant_id: u64,
-        milestone_idx: u32,
-    ) -> Option<reviewer_sla::ReviewerSlaRecord> {
-        reviewer_sla::get_sla(
-            &env,
-            &reviewer,
-            reviewer_sla::milestone_sla_id(grant_id, milestone_idx),
-        )
-    }
-
-    /// Check whether a reviewer has breached their SLA for a milestone,
-    /// persisting the breach on first detection. Returns true if breached.
-    pub fn check_reviewer_sla(
-        env: Env,
-        reviewer: Address,
-        grant_id: u64,
-        milestone_idx: u32,
-    ) -> bool {
-        reviewer_sla::check_and_mark_breach(
-            &env,
-            &reviewer,
-            reviewer_sla::milestone_sla_id(grant_id, milestone_idx),
-        )
     }
 
     // ── Issue #571: Taxonomy, Category, and Tag System for Grants ──────────
