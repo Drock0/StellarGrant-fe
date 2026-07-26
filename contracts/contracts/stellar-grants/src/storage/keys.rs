@@ -253,6 +253,10 @@ pub enum DataKey {
     ScoringRubricCounter,
     DexConfig,
     RelayConfig,
+    /// Per-action dispatch audit trail (#694).
+    /// Keyed by (sender, relayed_at, nonce) so the storage layer can keep an
+    /// append-only log of every actually-dispatched relay action.
+    RelayRecord(Address, u64, u32),
 
     // Per-address
     TokenMetrics(Address),

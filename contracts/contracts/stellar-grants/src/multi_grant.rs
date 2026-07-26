@@ -1,7 +1,9 @@
 use crate::errors::ContractError;
 use crate::storage::keys::{DataKey, GrantKey};
 use crate::storage::Storage;
-use crate::types::{MultiGrantBatchResult, GrantPortfolio, GrantStatus, PortfolioFilter, PortfolioStats};
+use crate::types::{
+    GrantPortfolio, GrantStatus, MultiGrantBatchResult, PortfolioFilter, PortfolioStats,
+};
 use soroban_sdk::{Address, Env, Vec};
 
 /// Return portfolio stats for an owner address.

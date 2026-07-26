@@ -153,6 +153,7 @@ pub fn build_snapshot(env: &Env) -> AnalyticsSnapshot {
         top_category_id,
         tvl_7day_growth_bps,
         snapshot_at: env.ledger().timestamp(),
+        captured_at_ledger: env.ledger().sequence(),
     };
 
     Storage::set_analytics_snapshot(env, &snapshot);
@@ -163,9 +164,12 @@ pub fn build_snapshot(env: &Env) -> AnalyticsSnapshot {
 pub fn get_snapshot(env: &Env) -> Option<AnalyticsSnapshot> {
     let snapshot = Storage::get_analytics_snapshot(env)?;
 
-    // Check staleness
+    // Check staleness (#695). Previously this compared `current_ledger`
+    // against a *fresh* `env.ledger().sequence()` call, so the difference
+    // was always 0 and the cached snapshot was effectively immortal.
+    // The captured ledger is now stored on the snapshot itself.
     let current_ledger = env.ledger().sequence();
-    let snapshot_ledger = env.ledger().sequence(); // Simplified - in real impl track ledger
+    let snapshot_ledger = snapshot.captured_at_ledger;
 
     if current_ledger.saturating_sub(snapshot_ledger)
         >= constants::ANALYTICS_SNAPSHOT_STALENESS_LEDGERS
@@ -180,4 +184,53 @@ pub fn get_snapshot(env: &Env) -> Option<AnalyticsSnapshot> {
 /// Return the raw rolling window for a metric.
 pub fn get_window(env: &Env, metric: Symbol) -> Option<RollingWindow> {
     Storage::get_rolling_window(env, &metric)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use soroban_sdk::testutils::Ledger;
+
+    /// #695: an old cached snapshot must trigger a rebuild once the ledger
+    /// advances past the staleness threshold. The previous implementation
+    /// compared against a self-referential `env.ledger().sequence()` call
+    /// (always 0), so the cached snapshot was effectively immortal.
+    #[test]
+    fn test_stale_snapshot_triggers_rebuild() {
+        let env = Env::default();
+
+        // Seed a window so build_snapshot has something to compute against.
+        record(&env, Symbol::new(&env, "milestone_completion_time"), 100);
+        record(&env, Symbol::new(&env, "reviewer_turnaround"), 50);
+        record(&env, Symbol::new(&env, "grant_success"), 1);
+
+        // Build at ledger 10.
+        let original_ledger = env.ledger().sequence();
+        let snap1 = build_snapshot(&env);
+        assert_eq!(snap1.captured_at_ledger, original_ledger);
+
+        // Advance the ledger past ANALYTICS_SNAPSHOT_STALENESS_LEDGERS (1000).
+        env.ledger().with_mut(|li| {
+            li.sequence_number += constants::ANALYTICS_SNAPSHOT_STALENESS_LEDGERS + 1
+        });
+
+        // Re-build — captured_at_ledger must follow the new ledger.
+        let snap2 = build_snapshot(&env);
+        assert_eq!(
+            snap2.captured_at_ledger,
+            original_ledger + constants::ANALYTICS_SNAPSHOT_STALENESS_LEDGERS + 1
+        );
+        assert!(
+            snap2.captured_at_ledger > snap1.captured_at_ledger,
+            "rebuilt snapshot must reflect the new ledger sequence"
+        );
+
+        // And the get_snapshot path must notice the staleness.
+        let fetched = get_snapshot(&env).expect("snapshot is cached");
+        assert_eq!(fetched.captured_at_ledger, snap2.captured_at_ledger);
+        assert!(
+            fetched.snapshot_at >= snap1.snapshot_at,
+            "snapshot_at timestamp monotonic"
+        );
+    }
 }

@@ -112,12 +112,13 @@ pub use events::Events;
 pub use storage::Storage;
 pub use types::{
     AcceptanceCriteria, Amendment, AmendmentStatus, AnalyticsSnapshot, Arbiter, ArbiterVote,
-    ArbitrationCase, AuditAction, AuditEntry, AutoApproveConfig, AutoApproveRecord, BatchItemResult,
-    BatchMilestoneVote, BatchResult, BondClaim, BondStatus, BountyGrant, BountyStatus,
-    BountySubmission, BreakerState, BridgeRelayer, CategoryStats, ChainId, ChecklistSubmission,
-    ClawbackRequest, ClawbackStatus, CollateralDeposit, CollateralRequirement, CollateralStatus,
-    ComplianceAttestation, ComplianceLevel, ComplianceStatus, ConditionResult, ContractVersion,
-    ContributionType, ContributorPortfolio, CriterionStatus, CrossChainProof, CrowdfundCampaign,
+    ArbitrationCase, AuditAction, AuditEntry, AutoApproveConfig, AutoApproveRecord,
+    BatchItemResult, BatchMilestoneVote, BatchResult, BondClaim, BondStatus, BountyGrant,
+    BountyStatus, BountySubmission, BreakerState, BridgeRelayer, CategoryStats, ChainId,
+    ChecklistSubmission, ClaimVestedPayload, ClawbackRequest, ClawbackStatus, CollateralDeposit,
+    CollateralRequirement, CollateralStatus, ComplianceAttestation, ComplianceLevel,
+    ComplianceStatus, ConditionResult, ContractVersion, ContributionType, ContributorPortfolio,
+    ContributorRegisterPayload, CriterionStatus, CrossChainProof, CrowdfundCampaign,
     CrowdfundPledge, CrowdfundStatus, DashboardView, DecayConfig, DecayType, DexConfig, Dispute,
     DisputeStatus, EscrowAccount, EscrowLifecycleState, EscrowMode, EscrowReleaseApproval,
     EscrowReleaseRequest, EscrowState, EvidenceField, EvidenceFieldType, EvidenceSchema,
@@ -129,21 +130,22 @@ pub use types::{
     InvoiceStatus, IpRights, LicenseRecord, LicenseType, LineItem, LockupRecord, LockupStatus,
     MatchingAllocation, MatchingContribution, MatchingRound, MerkleCommitment, MerkleProof,
     MigrationRecord, Milestone, MilestoneDag, MilestoneDependency, MilestoneNft, MilestoneState,
-    MilestoneSubmission, MilestoneTemplate, MultisigProposal, MultisigSigner, MultiGrantBatchResult,
-    NftMetadata, NotificationEvent, OracleConfig, ParamRecord, ParamType, ParamValue, PauseRecord,
-    PaymentSplit, PaymentStream, PerformanceBond, PortfolioFilter, PortfolioStats, PriceQuote,
-    ProtocolConfig, ProtocolMetrics, ProtocolModule, ProvenanceRecord, PublicReview,
-    PublicReviewSignal, QuadraticVoteRecord, RateLimitAction, ReferralCode, ReferralRecord,
-    ReferralReward, RegistryEntry, RegistryEntryType, RelayAllowance, RelayConfig, RelayRecord,
-    RelayableAction, ReleaseCondition, RenewalProposal, RenewalStatus, ReputationTier, RevenueEpoch,
-    ReviewParticipation, ReviewerAvailability, ReviewerProfile, ReviewerRequest,
-    ReviewerRequestStatus, ReviewerRewardPool, ReviewerRewardRecord, ReviewerView, Role,
-    RoleAssignment, RollingWindow, ScoreResult, ScoringDimension, ScoringRubric, ScoringWeight,
-    SignatureStatus, SplitRecipient, StakerEpochRecord, StructuredEvidence, Subscription,
-    SubscriptionScope, SwapResult, SwapRoute, SyndicateGrant, SyndicateMember, SyndicateStatus,
-    TemplateCategory, TimerRecord, TimerTriggerType, TokenMetric, TransferProposal,
-    TransferableRole, VerificationAttestation, VerificationLevel, VerificationStatus, VoiceCredits,
-    VotingMechanism, WaitlistConfig, WaitlistEntry, WhitelistEntry, WhitelistMode, WhitelistScope,
+    MilestoneSubmission, MilestoneSubmitPayload, MilestoneTemplate, MultiGrantBatchResult,
+    MultisigProposal, MultisigSigner, NftMetadata, NotificationEvent, OracleConfig, ParamRecord,
+    ParamType, ParamValue, PauseRecord, PaymentSplit, PaymentStream, PerformanceBond,
+    PortfolioFilter, PortfolioStats, PriceQuote, ProtocolConfig, ProtocolMetrics, ProtocolModule,
+    ProvenanceRecord, PublicReview, PublicReviewSignal, QuadraticVoteRecord, RateLimitAction,
+    ReferralCode, ReferralRecord, ReferralReward, RegistryEntry, RegistryEntryType, RelayAllowance,
+    RelayConfig, RelayDispatch, RelayRecord, RelayableAction, ReleaseCondition, RenewalProposal,
+    RenewalStatus, ReputationTier, RevenueEpoch, ReviewParticipation, ReviewerAvailability,
+    ReviewerProfile, ReviewerRequest, ReviewerRequestStatus, ReviewerRewardPool,
+    ReviewerRewardRecord, ReviewerView, Role, RoleAssignment, RollingWindow, ScoreResult,
+    ScoringDimension, ScoringRubric, ScoringWeight, SignatureStatus, SplitRecipient,
+    StakerEpochRecord, StructuredEvidence, Subscription, SubscriptionScope, SwapResult, SwapRoute,
+    SyndicateGrant, SyndicateMember, SyndicateStatus, TemplateCategory, TimerRecord,
+    TimerTriggerType, TokenMetric, TransferProposal, TransferableRole, VerificationAttestation,
+    VerificationLevel, VerificationStatus, VoiceCredits, VotingMechanism, WaitlistConfig,
+    WaitlistEntry, WhitelistEntry, WhitelistMode, WhitelistScope, WithdrawStreamPayload,
 };
 
 use metrics::MetricField;
@@ -1121,7 +1123,7 @@ impl StellarGrantsContract {
         owner: Address,
         grant_ids: Vec<u64>,
         reviewer: Address,
-    ) -> Result<BatchResult, ContractError> {
+    ) -> Result<MultiGrantBatchResult, ContractError> {
         owner.require_auth();
         multi_grant::batch_add_reviewer(&env, &owner, grant_ids, &reviewer)
     }
@@ -1132,7 +1134,7 @@ impl StellarGrantsContract {
         owner: Address,
         grant_ids: Vec<u64>,
         reviewer: Address,
-    ) -> Result<BatchResult, ContractError> {
+    ) -> Result<MultiGrantBatchResult, ContractError> {
         owner.require_auth();
         multi_grant::batch_remove_reviewer(&env, &owner, grant_ids, &reviewer)
     }
@@ -2233,16 +2235,47 @@ impl StellarGrantsContract {
         relay::set_relay_config(&env, &admin, config)
     }
 
-    /// Execute a relayed action on behalf of sender.
+    /// Execute a relayed action on behalf of sender (#694).
+    ///
+    /// `dispatch` is a typed envelope carrying the per-action parameters
+    /// (see `RelayDispatch`). The relay module verifies that the dispatched
+    /// variant matches the requested `action`, authenticates the sender as
+    /// well as the relayer, gates on the `ProtocolModule::Relay` circuit
+    /// breaker, and only burns the sender's nonce / daily quota *after* the
+    /// action is actually performed.
     pub fn relay_execute(
         env: Env,
         relayer: Address,
         sender: Address,
         action: RelayableAction,
         nonce: u32,
-        payload: Bytes,
+        dispatch: RelayDispatch,
     ) -> Result<(), ContractError> {
-        relay::execute_relayed(&env, &relayer, &sender, action, nonce, payload)
+        relay::execute_relayed(&env, &relayer, &sender, action, nonce, dispatch)
+    }
+
+    /// Configure the protocol-wide relay parameters (admin only).
+    pub fn set_relay_config(
+        env: Env,
+        admin: Address,
+        config: RelayConfig,
+    ) -> Result<(), ContractError> {
+        relay::set_relay_config(&env, &admin, config)
+    }
+
+    /// Read the per-sender relay quota (debugging / monitoring).
+    pub fn get_relay_allowance(env: Env, sender: Address) -> RelayAllowance {
+        relay::get_allowance(&env, &sender)
+    }
+
+    /// Read the protocol-wide relay configuration.
+    pub fn get_relay_config(env: Env) -> Option<RelayConfig> {
+        relay::get_relay_config(&env)
+    }
+
+    /// Check whether a relay is currently allowed for a given (sender, action).
+    pub fn can_relay(env: Env, sender: Address, action: RelayableAction) -> bool {
+        relay::can_relay(&env, &sender, &action)
     }
 
     /// Check if relay is allowed for an address and action.

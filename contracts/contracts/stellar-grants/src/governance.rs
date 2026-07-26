@@ -32,8 +32,8 @@ pub fn cast_vote(
         let total_participation = for_v.saturating_add(against_v);
 
         // Require both participation quorum (>50% of reviewers) and approval (>50% of votes)
-        let participation_quorum = total_participation > 0
-            && total_participation * 2 > milestone.reviewer_count_snapshot;
+        let participation_quorum =
+            total_participation > 0 && total_participation * 2 > milestone.reviewer_count_snapshot;
         let approval = total_participation > 0 && for_v * 2 > total_participation;
         let vote_finalized = participation_quorum && approval;
 
