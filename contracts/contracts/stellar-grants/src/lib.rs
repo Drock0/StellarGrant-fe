@@ -112,7 +112,7 @@ pub use events::Events;
 pub use storage::Storage;
 pub use types::{
     AcceptanceCriteria, Amendment, AmendmentStatus, AnalyticsSnapshot, Arbiter, ArbiterVote,
-    ArbitrationCase, AuditAction, AuditEntry, AutoApproveConfig, AutoApproveRecord,
+    ArbitrationCase, AuditAction, AuditEntry, AutoApproveConfig, AutoApproveRecord, BadgeType,
     BatchItemResult, BatchMilestoneVote, BatchResult, BondClaim, BondStatus, BountyGrant,
     BountyStatus, BountySubmission, BreakerState, BridgeRelayer, CategoryStats, ChainId,
     ChecklistSubmission, ClaimVestedPayload, ClawbackRequest, ClawbackStatus, CollateralDeposit,
@@ -650,6 +650,28 @@ impl StellarGrantsContract {
                 let _ = milestone_nft::mint(&env, grant_id, milestone_idx, &grant.owner, meta);
                 // Track this grant in the contributor's portfolio index (#565)
                 Storage::push_contributor_grant_id(&env, &grant.owner, grant_id);
+                // Award badges for milestone completion (#689)
+                badge::try_award(
+                    &env,
+                    &grant.owner,
+                    BadgeType::FirstMilestone,
+                    Some(grant_id),
+                    Some(milestone_idx),
+                );
+                badge::try_award(
+                    &env,
+                    &grant.owner,
+                    BadgeType::TenMilestones,
+                    Some(grant_id),
+                    Some(milestone_idx),
+                );
+                badge::try_award(
+                    &env,
+                    &grant.owner,
+                    BadgeType::FiftyMilestones,
+                    Some(grant_id),
+                    Some(milestone_idx),
+                );
             } else {
                 audit::log(
                     &env,

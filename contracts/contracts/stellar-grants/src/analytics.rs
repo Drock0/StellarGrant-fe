@@ -78,11 +78,9 @@ pub fn category_stats(env: &Env, category_id: u32) -> CategoryStats {
         0
     };
 
-    let success_rate_bps = if total_grants > 0 {
-        (completed_grants * constants::BASIS_POINTS_SCALE) / total_grants
-    } else {
-        0
-    };
+    let success_rate_bps = (completed_grants * constants::BASIS_POINTS_SCALE)
+        .checked_div(total_grants)
+        .unwrap_or(0);
 
     CategoryStats {
         category_id,

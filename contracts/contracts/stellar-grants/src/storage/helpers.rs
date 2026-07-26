@@ -949,6 +949,19 @@ impl Storage {
             .set(&DataKey::Grant(GrantKey::CategoryList), categories);
     }
 
+    pub fn get_category_index(env: &Env, category_id: u32) -> Vec<u64> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Grant(GrantKey::CategoryIndex(category_id)))
+            .unwrap_or_else(|| Vec::new(env))
+    }
+
+    pub fn set_category_index(env: &Env, category_id: u32, grant_ids: &Vec<u64>) {
+        let key = DataKey::Grant(GrantKey::CategoryIndex(category_id));
+        env.storage().persistent().set(&key, grant_ids);
+        Self::bump(env, &key);
+    }
+
     // ── Issue #577: Grant Renewal Module ──────────────────────────────────────
 
     pub fn get_renewal_proposal(env: &Env, original_grant_id: u64) -> Option<RenewalProposal> {

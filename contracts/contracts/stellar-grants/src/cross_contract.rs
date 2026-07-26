@@ -24,8 +24,8 @@ pub fn read_oracle_price(
     let client = OracleClient::new(env, oracle_contract);
     client
         .try_price(token)
+        .map_err(|_| ContractError::InvalidInput)?
         .map_err(|_| ContractError::InvalidInput)
-        .and_then(|inner| inner.map_err(|_| ContractError::InvalidInput))
 }
 
 /// Safely invoke a contract method by symbol, returning `Err` on trap/wrong
