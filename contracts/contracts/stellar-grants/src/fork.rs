@@ -117,3 +117,160 @@ pub fn is_descendant(env: &Env, ancestor_id: u64, descendant_id: u64) -> bool {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::constants::MAX_FORK_DEPTH;
+    use crate::storage::Storage;
+    use crate::types::{Grant, GrantStatus};
+    use soroban_sdk::testutils::{Address as _, Ledger};
+    use soroban_sdk::{vec, Address, Env, String};
+
+    fn setup_grant(env: &Env, id: u64, owner: &Address) {
+        let grant = Grant {
+            id,
+            owner: owner.clone(),
+            title: String::from_str(env, "Original Grant"),
+            description: String::from_str(env, "Desc"),
+            token: Address::generate(env),
+            status: GrantStatus::Active,
+            total_amount: 1000,
+            milestone_amount: 100,
+            reviewers: vec![env],
+            total_milestones: 10,
+            milestones_paid_out: 0,
+            escrow_balance: 1000,
+            funders: vec![env],
+            reason: None,
+            timestamp: env.ledger().timestamp(),
+            require_compliance: None,
+        };
+        Storage::set_grant(env, id, &grant);
+    }
+
+    #[test]
+    fn test_fork_grant() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let owner = Address::generate(&env);
+        let caller = Address::generate(&env);
+        let token = Address::generate(&env);
+        setup_grant(&env, 1, &owner);
+
+        let new_grant_id = fork_grant(
+            &env,
+            &caller,
+            1,
+            String::from_str(&env, "Forked Grant"),
+            String::from_str(&env, "Forked Desc"),
+            2000,
+            &token,
+            true,
+            true,
+        )
+        .unwrap();
+
+        // Verify fork record
+        let record = get_fork_record(&env, new_grant_id).unwrap();
+        assert_eq!(record.original_grant_id, 1);
+        assert_eq!(record.forked_by, caller);
+
+        // Verify children
+        let children = get_forks(&env, 1);
+        assert_eq!(children.len(), 1);
+        assert_eq!(children.get(0).unwrap(), new_grant_id);
+
+        // Verify depth and descendant
+        assert_eq!(fork_depth(&env, new_grant_id), 1);
+        assert!(is_descendant(&env, 1, new_grant_id));
+    }
+
+    #[test]
+    fn test_fork_depth_limit() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let owner = Address::generate(&env);
+        let token = Address::generate(&env);
+
+        setup_grant(&env, 1, &owner);
+        let mut current_id = 1;
+
+        // Reach max depth
+        for _ in 0..MAX_FORK_DEPTH {
+            let caller = Address::generate(&env);
+            current_id = fork_grant(
+                &env,
+                &caller,
+                current_id,
+                String::from_str(&env, "Fork"),
+                String::from_str(&env, "Desc"),
+                100,
+                &token,
+                false,
+                false,
+            )
+            .unwrap();
+        }
+
+        // Exceed max depth
+        let caller = Address::generate(&env);
+        let result = fork_grant(
+            &env,
+            &caller,
+            current_id,
+            String::from_str(&env, "Fork"),
+            String::from_str(&env, "Desc"),
+            100,
+            &token,
+            false,
+            false,
+        );
+        assert_eq!(result, Err(ContractError::InvalidInput));
+    }
+
+    #[test]
+    fn test_fork_multiple_children() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let owner = Address::generate(&env);
+        let token = Address::generate(&env);
+        setup_grant(&env, 1, &owner);
+
+        let caller1 = Address::generate(&env);
+        let child1 = fork_grant(
+            &env,
+            &caller1,
+            1,
+            String::from_str(&env, "Fork 1"),
+            String::from_str(&env, "Desc"),
+            100,
+            &token,
+            false,
+            false,
+        )
+        .unwrap();
+
+        let caller2 = Address::generate(&env);
+        let child2 = fork_grant(
+            &env,
+            &caller2,
+            1,
+            String::from_str(&env, "Fork 2"),
+            String::from_str(&env, "Desc"),
+            100,
+            &token,
+            false,
+            false,
+        )
+        .unwrap();
+
+        let children = get_forks(&env, 1);
+        assert_eq!(children.len(), 2);
+        assert_eq!(children.get(0).unwrap(), child1);
+        assert_eq!(children.get(1).unwrap(), child2);
+    }
+}
