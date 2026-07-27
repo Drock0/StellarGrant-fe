@@ -2293,3 +2293,109 @@ impl Storage {
         Self::bump(env, &key);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use soroban_sdk::{testutils::Address as _, Env};
+
+    #[test]
+    fn test_global_admin_roundtrip() {
+        let env = Env::default();
+        assert!(Storage::get_global_admin(&env).is_none());
+
+        let admin = Address::generate(&env);
+        Storage::set_global_admin(&env, &admin);
+        assert_eq!(Storage::get_global_admin(&env).unwrap(), admin);
+    }
+
+    #[test]
+    fn test_council_roundtrip() {
+        let env = Env::default();
+        assert!(Storage::get_council(&env).is_none());
+
+        let council = Address::generate(&env);
+        Storage::set_council(&env, &council);
+        assert_eq!(Storage::get_council(&env).unwrap(), council);
+    }
+
+    #[test]
+    fn test_grant_counter_increments() {
+        let env = Env::default();
+        let id1 = Storage::increment_grant_counter(&env);
+        let id2 = Storage::increment_grant_counter(&env);
+        let id3 = Storage::increment_grant_counter(&env);
+        assert_eq!(id1, 1);
+        assert_eq!(id2, 2);
+        assert_eq!(id3, 3);
+    }
+
+    #[test]
+    fn test_grant_not_found_returns_none() {
+        let env = Env::default();
+        assert!(Storage::get_grant(&env, 999).is_none());
+    }
+
+    #[test]
+    fn test_set_and_get_grant() {
+        let env = Env::default();
+        let owner = Address::generate(&env);
+        let grant = crate::types::Grant {
+            owner: owner.clone(),
+            total_milestones: 3,
+            ..Default::default()
+        };
+        Storage::set_grant(&env, 1, &grant);
+
+        let loaded = Storage::get_grant(&env, 1).unwrap();
+        assert_eq!(loaded.owner, owner);
+        assert_eq!(loaded.total_milestones, 3);
+    }
+
+    #[test]
+    fn test_contributor_index_empty_by_default() {
+        let env = Env::default();
+        let index = Storage::get_contributor_index(&env);
+        assert_eq!(index.len(), 0);
+    }
+
+    #[test]
+    fn test_reviewer_allowlist_roundtrip() {
+        let env = Env::default();
+        let allowlist = Storage::get_reviewer_allowlist(&env);
+        assert_eq!(allowlist.len(), 0);
+
+        let reviewer = Address::generate(&env);
+        let mut list = soroban_sdk::Vec::new(&env);
+        list.push_back(reviewer.clone());
+        Storage::set_reviewer_allowlist(&env, &list);
+
+        let loaded = Storage::get_reviewer_allowlist(&env);
+        assert_eq!(loaded.len(), 1);
+        assert_eq!(loaded.get(0).unwrap(), reviewer);
+    }
+
+    #[test]
+    fn test_payment_split_roundtrip() {
+        let env = Env::default();
+        let addr = Address::generate(&env);
+        let split = PaymentSplit {
+            grant_id: 1,
+            milestone_idx: 0,
+            recipients: soroban_sdk::Vec::new(&env),
+            registered_by: addr,
+            registered_at: 12345,
+        };
+        Storage::set_payment_split(&env, 1, 0, &split);
+
+        let loaded = Storage::get_payment_split(&env, 1, 0).unwrap();
+        assert_eq!(loaded.grant_id, 1);
+        assert_eq!(loaded.registered_at, 12345);
+    }
+
+    #[test]
+    fn test_payment_split_none_for_missing() {
+        let env = Env::default();
+        assert!(Storage::get_payment_split(&env, 999, 0).is_none());
+    }
+}

@@ -84,3 +84,97 @@ pub fn execute_split(
 pub fn get_split(env: &Env, grant_id: u64, milestone_idx: u32) -> Option<PaymentSplit> {
     Storage::get_payment_split(env, grant_id, milestone_idx)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use soroban_sdk::{testutils::Address as _, vec, Env};
+
+    fn setup_grant(env: &Env, owner: &Address, grant_id: u64, total_milestones: u32) {
+        use crate::types::Grant;
+        let grant = Grant {
+            owner: owner.clone(),
+            total_milestones,
+            ..Default::default()
+        };
+        Storage::set_grant(env, grant_id, &grant);
+    }
+
+    #[test]
+    fn test_register_split() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let owner = Address::generate(&env);
+        let r1 = Address::generate(&env);
+        let r2 = Address::generate(&env);
+
+        setup_grant(&env, &owner, 1, 3);
+
+        let recipients = vec![
+            &env,
+            SplitRecipient { recipient: r1.clone(), share_bps: 6000 },
+            SplitRecipient { recipient: r2.clone(), share_bps: 4000 },
+        ];
+
+        register_split(&env, &owner, 1, 0, recipients).unwrap();
+
+        assert!(has_split(&env, 1, 0));
+        let split = get_split(&env, 1, 0).unwrap();
+        assert_eq!(split.recipients.len(), 2);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_register_split_bps_not_10000() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let owner = Address::generate(&env);
+        let r1 = Address::generate(&env);
+
+        setup_grant(&env, &owner, 1, 1);
+
+        let recipients = vec![
+            &env,
+            SplitRecipient { recipient: r1, share_bps: 5000 },
+        ];
+
+        register_split(&env, &owner, 1, 0, recipients).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_register_split_empty_recipients() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let owner = Address::generate(&env);
+
+        setup_grant(&env, &owner, 1, 1);
+
+        let recipients = Vec::new(&env);
+        register_split(&env, &owner, 1, 0, recipients).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_register_split_milestone_out_of_bounds() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let owner = Address::generate(&env);
+        let r1 = Address::generate(&env);
+
+        setup_grant(&env, &owner, 1, 1);
+
+        let recipients = vec![
+            &env,
+            SplitRecipient { recipient: r1, share_bps: 10000 },
+        ];
+
+        register_split(&env, &owner, 1, 5, recipients).unwrap();
+    }
+
+    #[test]
+    fn test_has_split_returns_false_when_none() {
+        let env = Env::default();
+        assert!(!has_split(&env, 999, 0));
+    }
+}
