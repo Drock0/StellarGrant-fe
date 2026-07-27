@@ -111,3 +111,160 @@ fn require_global_admin(env: &Env, caller: &Address) -> Result<(), ContractError
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::storage::Storage;
+    use soroban_sdk::{testutils::Address as _, Env, String};
+
+    fn setup() -> (Env, Address) {
+        let env = Env::default();
+        env.mock_all_auths();
+        let admin = Address::generate(&env);
+        Storage::set_global_admin(&env, &admin);
+        (env, admin)
+    }
+
+    #[test]
+    fn test_register_contributor() {
+        let (env, _) = setup();
+        let addr = Address::generate(&env);
+        let name = String::from_str(&env, "Alice");
+
+        register_contributor(&env, &addr, &name).unwrap();
+
+        assert_eq!(contributor_count(&env), 1);
+        let page = get_contributors_page(&env, 0, 10);
+        assert_eq!(page.len(), 1);
+        assert_eq!(page.get(0).unwrap().address, addr);
+        assert_eq!(page.get(0).unwrap().entry_type, RegistryEntryType::Contributor);
+        assert!(page.get(0).unwrap().is_active);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_register_contributor_duplicate() {
+        let (env, _) = setup();
+        let addr = Address::generate(&env);
+        let name = String::from_str(&env, "Alice");
+
+        register_contributor(&env, &addr, &name).unwrap();
+        register_contributor(&env, &addr, &name).unwrap(); // duplicate
+    }
+
+    #[test]
+    fn test_register_multiple_contributors() {
+        let (env, _) = setup();
+        let a1 = Address::generate(&env);
+        let a2 = Address::generate(&env);
+        let a3 = Address::generate(&env);
+
+        register_contributor(&env, &a1, &String::from_str(&env, "A")).unwrap();
+        register_contributor(&env, &a2, &String::from_str(&env, "B")).unwrap();
+        register_contributor(&env, &a3, &String::from_str(&env, "C")).unwrap();
+
+        assert_eq!(contributor_count(&env), 3);
+    }
+
+    #[test]
+    fn test_approve_reviewer() {
+        let (env, admin) = setup();
+        let reviewer = Address::generate(&env);
+
+        approve_reviewer(&env, &admin, &reviewer).unwrap();
+
+        assert!(is_approved_reviewer(&env, &reviewer));
+    }
+
+    #[test]
+    fn test_approve_reviewer_idempotent() {
+        let (env, admin) = setup();
+        let reviewer = Address::generate(&env);
+
+        approve_reviewer(&env, &admin, &reviewer).unwrap();
+        approve_reviewer(&env, &admin, &reviewer).unwrap(); // no-op
+
+        assert!(is_approved_reviewer(&env, &reviewer));
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_approve_reviewer_unauthorized() {
+        let (env, _) = setup();
+        let reviewer = Address::generate(&env);
+        let other = Address::generate(&env);
+
+        approve_reviewer(&env, &other, &reviewer).unwrap();
+    }
+
+    #[test]
+    fn test_revoke_reviewer() {
+        let (env, admin) = setup();
+        let reviewer = Address::generate(&env);
+
+        approve_reviewer(&env, &admin, &reviewer).unwrap();
+        assert!(is_approved_reviewer(&env, &reviewer));
+
+        revoke_reviewer(&env, &admin, &reviewer).unwrap();
+        assert!(!is_approved_reviewer(&env, &reviewer));
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_revoke_reviewer_not_found() {
+        let (env, admin) = setup();
+        let reviewer = Address::generate(&env);
+
+        revoke_reviewer(&env, &admin, &reviewer).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_revoke_reviewer_unauthorized() {
+        let (env, admin) = setup();
+        let reviewer = Address::generate(&env);
+
+        approve_reviewer(&env, &admin, &reviewer).unwrap();
+
+        let other = Address::generate(&env);
+        revoke_reviewer(&env, &other, &reviewer).unwrap();
+    }
+
+    #[test]
+    fn test_is_approved_reviewer_returns_false_for_unknown() {
+        let (env, _) = setup();
+        let addr = Address::generate(&env);
+        assert!(!is_approved_reviewer(&env, &addr));
+    }
+
+    #[test]
+    fn test_pagination() {
+        let (env, _) = setup();
+
+        for i in 0..5 {
+            let addr = Address::generate(&env);
+            register_contributor(&env, &addr, &String::from_str(&env, "C")).unwrap();
+        }
+
+        assert_eq!(contributor_count(&env), 5);
+
+        // Page 0: items 0-2
+        let page0 = get_contributors_page(&env, 0, 3);
+        assert_eq!(page0.len(), 3);
+
+        // Page 1: items 3-4
+        let page1 = get_contributors_page(&env, 3, 3);
+        assert_eq!(page1.len(), 2);
+
+        // Offset beyond count
+        let empty = get_contributors_page(&env, 10, 3);
+        assert_eq!(empty.len(), 0);
+    }
+
+    #[test]
+    fn test_contributor_count_empty() {
+        let (env, _) = setup();
+        assert_eq!(contributor_count(&env), 0);
+    }
+}
