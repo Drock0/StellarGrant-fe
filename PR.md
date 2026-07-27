@@ -6,7 +6,7 @@ This PR implements four SDK improvements across a single branch to keep the chan
 
 ## Changes
 
-### #498 — TypeScript Type Safety for Contract Read Methods
+### #498— TypeScript Type Safety for Contract Read Methods
 
 **Files:** `client/src/types/index.ts`, `client/src/index.ts`, `client/src/StellarGrantsSDK.ts`
 
@@ -15,7 +15,6 @@ This PR implements four SDK improvements across a single branch to keep the chan
 - Added `assertGrantData` / `assertMilestoneData` internal shape validators that emit a `console.warn` in non-production environments when the response is missing expected fields, without ever hard-throwing on partial data (safe for unit-test mocks).
 - Exported new types from `src/index.ts`.
 
----
 
 ### #501 — Polling vs WebSockets for Contract Events
 
@@ -27,7 +26,7 @@ This PR implements four SDK improvements across a single branch to keep the chan
 - WebSocket errors are forwarded to `options.onError` before cleanup.
 - All existing WebSocket unit tests continue to pass.
 
----
+
 
 ### #503 — Dynamic Gas/Fee Estimation Improvements
 
