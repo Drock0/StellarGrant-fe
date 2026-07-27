@@ -77,9 +77,4 @@ All existing tests pass. The fee estimation suite (`tests/fee-estimation.test.ts
 - [x] `axios` removed from `dependencies`
 - [x] `tsup` added to `devDependencies` only (not bundled into the SDK)
 
----
 
-Closes #497
-Closes #498
-Closes #501
-Closes #503
