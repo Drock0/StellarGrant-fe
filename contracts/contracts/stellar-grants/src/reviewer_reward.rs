@@ -149,6 +149,8 @@ pub fn claim_rewards(
     reviewer: &Address,
     token: &Address,
 ) -> Result<i128, ContractError> {
+    crate::reentrancy::protect(env)?;
+
     let reward_key = DataKey::ReviewerReward(ReviewerRewardKey::RewardRecord(
         reviewer.clone(),
         token.clone(),
@@ -178,7 +180,10 @@ pub fn claim_rewards(
     }
 
     // Transfer from contract to reviewer
-    token::Client::new(env, token).transfer(&env.current_contract_address(), reviewer, &claimable);
+    crate::reentrancy::protect_external_call(env, || {
+        token::Client::new(env, token).transfer(&env.current_contract_address(), reviewer, &claimable);
+        Ok(())
+    })?;
 
     // Update reward record
     reward_record.pending_amount = reward_record
@@ -382,5 +387,22 @@ mod tests {
 
         assert_eq!(part1.fast_votes, 1);
         assert_eq!(part2.fast_votes, 0);
+    }
+
+    #[test]
+    fn test_claim_rewards_rejects_reentrant_call_when_guard_is_held() {
+        let env = soroban_sdk::Env::default();
+        let contract_id = env.register(crate::StellarGrantsContract, ());
+        let reviewer = Address::generate(&env);
+        let token = Address::generate(&env);
+
+        env.as_contract(&contract_id, || {
+            env.storage()
+                .temporary()
+                .set(&crate::reentrancy::ReentrancyKey::ExternalCallGuard, &());
+
+            let err = claim_rewards(&env, &reviewer, &token).unwrap_err();
+            assert_eq!(err, ContractError::Reentrancy);
+        });
     }
 }
