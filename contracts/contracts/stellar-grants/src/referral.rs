@@ -226,6 +226,7 @@ pub fn claim_rewards(
     referrer: &Address,
     token: &Address,
 ) -> Result<i128, ContractError> {
+    crate::reentrancy::protect(env)?;
     referrer.require_auth();
 
     let pending = Storage::get_referral_rewards(env, referrer, token);
@@ -235,7 +236,10 @@ pub fn claim_rewards(
 
     Storage::set_referral_rewards(env, referrer, token, 0);
 
-    token::Client::new(env, token).transfer(&env.current_contract_address(), referrer, &pending);
+    crate::reentrancy::protect_external_call(env, || {
+        token::Client::new(env, token).transfer(&env.current_contract_address(), referrer, &pending);
+        Ok(())
+    })?;
 
     ReferralRewardsClaimed {
         referrer: referrer.clone(),
@@ -462,5 +466,20 @@ mod tests {
 
         assert_eq!(f.client.referral_pending_rewards(&f.referrer, &f.token), 0);
         assert!(f.client.referral_get_record(&f.owner).is_none());
+    }
+
+    #[test]
+    fn test_claim_rewards_rejects_reentrant_call_when_guard_is_held() {
+        let f = setup();
+
+        f.env.as_contract(&f.contract_id, || {
+            f.env
+                .storage()
+                .temporary()
+                .set(&crate::reentrancy::ReentrancyKey::ExternalCallGuard, &());
+
+            let err = claim_rewards(&f.env, &f.referrer, &f.token).unwrap_err();
+            assert_eq!(err, ContractError::Reentrancy);
+        });
     }
 }

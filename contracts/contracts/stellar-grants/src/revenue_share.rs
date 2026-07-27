@@ -115,6 +115,7 @@ pub fn compute_claim(env: &Env, staker: &Address, epoch_id: u32) -> i128 {
 
 /// Staker claims their revenue share for a finalized epoch.
 pub fn claim(env: &Env, staker: &Address, epoch_id: u32) -> Result<i128, ContractError> {
+    crate::reentrancy::protect(env)?;
     staker.require_auth();
 
     let mut epoch = Storage::get_revenue_epoch(env, epoch_id).ok_or(ContractError::InvalidState)?;
@@ -142,7 +143,10 @@ pub fn claim(env: &Env, staker: &Address, epoch_id: u32) -> Result<i128, Contrac
     Storage::set_revenue_epoch(env, &epoch);
 
     let token_client = token::Client::new(env, &epoch.token);
-    token_client.transfer(&env.current_contract_address(), staker, &claimable);
+    crate::reentrancy::protect_external_call(env, || {
+        token_client.transfer(&env.current_contract_address(), staker, &claimable);
+        Ok(())
+    })?;
 
     RevenueClaimed {
         staker: staker.clone(),
@@ -283,6 +287,41 @@ mod tests {
             let ids = unclaimed_epochs(&env, &staker);
             assert_eq!(ids.len(), 1);
             assert_eq!(ids.get(0), Some(0));
+        });
+    }
+
+    #[test]
+    fn test_claim_rejects_reentrant_call_when_guard_is_held() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(crate::StellarGrantsContract, ());
+        let token = Address::generate(&env);
+        let staker = Address::generate(&env);
+
+        env.as_contract(&contract_id, || {
+            let mut epoch = empty_epoch(0, &token);
+            epoch.finalized = true;
+            epoch.total_revenue = 100;
+            epoch.total_stake_weight = 100;
+            Storage::set_revenue_epoch(&env, &epoch);
+            Storage::set_staker_epoch_record(
+                &env,
+                &StakerEpochRecord {
+                    staker: staker.clone(),
+                    epoch_id: 0,
+                    stake_weight: 100,
+                    claimable: 0,
+                    claimed: false,
+                    claimed_at: None,
+                },
+            );
+
+            env.storage()
+                .temporary()
+                .set(&crate::reentrancy::ReentrancyKey::ExternalCallGuard, &());
+
+            let err = claim(&env, &staker, 0).unwrap_err();
+            assert_eq!(err, ContractError::Reentrancy);
         });
     }
 

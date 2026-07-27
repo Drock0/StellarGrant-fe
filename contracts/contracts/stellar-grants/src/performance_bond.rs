@@ -90,6 +90,7 @@ pub fn require_bond(
 
 /// Guarantor posts the bond by depositing the bond amount.
 pub fn post_bond(env: &Env, guarantor: &Address, bond_id: u32) -> Result<(), ContractError> {
+    crate::reentrancy::protect(env)?;
     guarantor.require_auth();
 
     let grant_id = Storage::get_bond_grant(env, bond_id).ok_or(ContractError::BondNotFound)?;
@@ -103,11 +104,14 @@ pub fn post_bond(env: &Env, guarantor: &Address, bond_id: u32) -> Result<(), Con
         return Err(ContractError::BondExpired);
     }
 
-    token::Client::new(env, &bond.token).transfer(
-        guarantor,
-        &env.current_contract_address(),
-        &bond.bond_amount,
-    );
+    crate::reentrancy::protect_external_call(env, || {
+        token::Client::new(env, &bond.token).transfer(
+            guarantor,
+            &env.current_contract_address(),
+            &bond.bond_amount,
+        );
+        Ok(())
+    })?;
 
     bond.guarantor = guarantor.clone();
     bond.status = BondStatus::Active;
@@ -126,6 +130,8 @@ pub fn post_bond(env: &Env, guarantor: &Address, bond_id: u32) -> Result<(), Con
 
 /// Release bond back to the guarantor after successful grant completion.
 pub fn release_bond(env: &Env, grant_id: u64) -> Result<(), ContractError> {
+    crate::reentrancy::protect(env)?;
+
     let mut bond = match Storage::get_performance_bond(env, grant_id) {
         Some(b) => b,
         None => return Ok(()), // no bond on this grant — nothing to release
@@ -135,11 +141,14 @@ pub fn release_bond(env: &Env, grant_id: u64) -> Result<(), ContractError> {
         return Err(ContractError::BondNotActive);
     }
 
-    token::Client::new(env, &bond.token).transfer(
-        &env.current_contract_address(),
-        &bond.guarantor,
-        &bond.bond_amount,
-    );
+    crate::reentrancy::protect_external_call(env, || {
+        token::Client::new(env, &bond.token).transfer(
+            &env.current_contract_address(),
+            &bond.guarantor,
+            &bond.bond_amount,
+        );
+        Ok(())
+    })?;
 
     bond.status = BondStatus::Released;
     Storage::set_performance_bond(env, &bond);
@@ -175,6 +184,7 @@ pub fn claim_bond(
     grant_id: u64,
     reason: String,
 ) -> Result<BondClaim, ContractError> {
+    crate::reentrancy::protect(env)?;
     funder.require_auth();
 
     let grant = Storage::get_grant(env, grant_id).ok_or(ContractError::GrantNotFound)?;
@@ -225,7 +235,10 @@ pub fn claim_bond(
         };
 
         if share > 0 {
-            token_client.transfer(&env.current_contract_address(), &gf.funder, &share);
+            crate::reentrancy::protect_external_call(env, || {
+                token_client.transfer(&env.current_contract_address(), &gf.funder, &share);
+                Ok(())
+            })?;
             distributed = distributed.saturating_add(share);
         }
         if gf.funder == *funder {
@@ -515,6 +528,29 @@ mod tests {
             )
             .unwrap_err();
             assert_eq!(err, ContractError::InvalidState);
+        });
+    }
+
+    #[test]
+    fn test_claim_bond_rejects_reentrant_call_when_guard_is_held() {
+        let f = setup(1_000, 0);
+        require_and_post(&f);
+        cancel_grant(&f);
+
+        f.env.as_contract(&f.contract_id, || {
+            f.env
+                .storage()
+                .temporary()
+                .set(&crate::reentrancy::ReentrancyKey::ExternalCallGuard, &());
+
+            let err = claim_bond(
+                &f.env,
+                &f.funder_a,
+                f.grant_id,
+                String::from_str(&f.env, "reentrant"),
+            )
+            .unwrap_err();
+            assert_eq!(err, ContractError::Reentrancy);
         });
     }
 
