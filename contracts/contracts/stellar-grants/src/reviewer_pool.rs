@@ -217,12 +217,12 @@ mod tests {
         String::from_str(env, s)
     }
 
-    fn setup<'a>() -> (Env, StellarGrantsContractClient<'a>) {
+    fn setup<'a>() -> (Env, Address, StellarGrantsContractClient<'a>) {
         let env = Env::default();
         env.mock_all_auths();
         let contract_id = env.register(StellarGrantsContract, ());
         let client = StellarGrantsContractClient::new(&env, &contract_id);
-        (env, client)
+        (env, contract_id, client)
     }
 
     fn register(
@@ -236,6 +236,15 @@ mod tests {
         reviewer
     }
 
+    fn find(
+        env: &Env,
+        contract_id: &Address,
+        tag_val: &String,
+        limit: u32,
+    ) -> Vec<ReviewerProfile> {
+        env.as_contract(contract_id, || find_by_tag(env, tag_val, limit))
+    }
+
     fn addresses(profiles: &Vec<ReviewerProfile>) -> soroban_sdk::Vec<Address> {
         let mut out = soroban_sdk::Vec::new(profiles.env());
         for p in profiles.iter() {
@@ -246,7 +255,7 @@ mod tests {
 
     #[test]
     fn test_find_by_tag_returns_only_reviewers_with_that_tag() {
-        let (env, client) = setup();
+        let (env, contract_id, client) = setup();
 
         let rustacean = register(
             &env,
@@ -262,29 +271,29 @@ mod tests {
             vec![&env, tag(&env, "security"), tag(&env, "solidity")],
         );
 
-        let rust_hits = client.reviewer_find_by_tag(&tag(&env, "rust"), &10);
+        let rust_hits = find(&env, &contract_id, &tag(&env, "rust"), 10);
         assert_eq!(addresses(&rust_hits), vec![&env, rustacean.clone()]);
 
-        let security_hits = client.reviewer_find_by_tag(&tag(&env, "security"), &10);
+        let security_hits = find(&env, &contract_id, &tag(&env, "security"), 10);
         assert_eq!(
             addresses(&security_hits),
             vec![&env, rustacean, auditor.clone()]
         );
 
-        let design_hits = client.reviewer_find_by_tag(&tag(&env, "design"), &10);
+        let design_hits = find(&env, &contract_id, &tag(&env, "design"), 10);
         assert_eq!(addresses(&design_hits), vec![&env, designer]);
 
-        let solidity_hits = client.reviewer_find_by_tag(&tag(&env, "solidity"), &10);
+        let solidity_hits = find(&env, &contract_id, &tag(&env, "solidity"), 10);
         assert_eq!(addresses(&solidity_hits), vec![&env, auditor]);
     }
 
     #[test]
     fn test_find_by_tag_returns_full_profiles() {
-        let (env, client) = setup();
+        let (env, contract_id, client) = setup();
 
         let reviewer = register(&env, &client, "Rustacean", vec![&env, tag(&env, "rust")]);
 
-        let hits = client.reviewer_find_by_tag(&tag(&env, "rust"), &10);
+        let hits = find(&env, &contract_id, &tag(&env, "rust"), 10);
         assert_eq!(hits.len(), 1);
         let profile = hits.get(0).unwrap();
         assert_eq!(profile.reviewer, reviewer);
@@ -294,40 +303,31 @@ mod tests {
 
     #[test]
     fn test_find_by_tag_unknown_tag_is_empty() {
-        let (env, client) = setup();
+        let (env, contract_id, client) = setup();
         register(&env, &client, "Rustacean", vec![&env, tag(&env, "rust")]);
 
-        assert_eq!(
-            client.reviewer_find_by_tag(&tag(&env, "cobol"), &10).len(),
-            0
-        );
+        assert_eq!(find(&env, &contract_id, &tag(&env, "cobol"), 10).len(), 0);
         // Matching is exact and case-sensitive.
-        assert_eq!(
-            client.reviewer_find_by_tag(&tag(&env, "Rust"), &10).len(),
-            0
-        );
-        assert_eq!(client.reviewer_find_by_tag(&tag(&env, "rus"), &10).len(), 0);
+        assert_eq!(find(&env, &contract_id, &tag(&env, "Rust"), 10).len(), 0);
+        assert_eq!(find(&env, &contract_id, &tag(&env, "rus"), 10).len(), 0);
     }
 
     #[test]
     fn test_find_by_tag_respects_limit() {
-        let (env, client) = setup();
+        let (env, contract_id, client) = setup();
         for i in 0..3 {
             let _ = i;
             register(&env, &client, "R", vec![&env, tag(&env, "rust")]);
         }
 
-        assert_eq!(client.reviewer_find_by_tag(&tag(&env, "rust"), &0).len(), 0);
-        assert_eq!(client.reviewer_find_by_tag(&tag(&env, "rust"), &2).len(), 2);
-        assert_eq!(
-            client.reviewer_find_by_tag(&tag(&env, "rust"), &100).len(),
-            3
-        );
+        assert_eq!(find(&env, &contract_id, &tag(&env, "rust"), 0).len(), 0);
+        assert_eq!(find(&env, &contract_id, &tag(&env, "rust"), 2).len(), 2);
+        assert_eq!(find(&env, &contract_id, &tag(&env, "rust"), 100).len(), 3);
     }
 
     #[test]
     fn test_reregistering_replaces_the_indexed_tags() {
-        let (env, client) = setup();
+        let (env, contract_id, client) = setup();
         let reviewer = register(&env, &client, "Rustacean", vec![&env, tag(&env, "rust")]);
 
         client.reviewer_register(
@@ -337,31 +337,25 @@ mod tests {
             &None,
         );
 
+        assert_eq!(find(&env, &contract_id, &tag(&env, "rust"), 10).len(), 0);
         assert_eq!(
-            client.reviewer_find_by_tag(&tag(&env, "rust"), &10).len(),
-            0
-        );
-        assert_eq!(
-            addresses(&client.reviewer_find_by_tag(&tag(&env, "design"), &10)),
+            addresses(&find(&env, &contract_id, &tag(&env, "design"), 10)),
             vec![&env, reviewer]
         );
     }
 
     #[test]
     fn test_reregistering_same_tag_does_not_duplicate() {
-        let (env, client) = setup();
-        let reviewer = register(&env, &client, "Rustacean", vec![&env, tag(&env, "rust")]);
+        let (env, contract_id, client) = setup();
+        let _reviewer = register(&env, &client, "Rustacean", vec![&env, tag(&env, "rust")]);
 
         client.reviewer_register(
-            &reviewer,
+            &_reviewer,
             &String::from_str(&env, "Rustacean v2"),
             &vec![&env, tag(&env, "rust")],
             &None,
         );
 
-        assert_eq!(
-            client.reviewer_find_by_tag(&tag(&env, "rust"), &10).len(),
-            1
-        );
+        assert_eq!(find(&env, &contract_id, &tag(&env, "rust"), 10).len(), 1);
     }
 }

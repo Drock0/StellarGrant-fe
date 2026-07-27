@@ -224,6 +224,23 @@ mod tests {
         env.ledger().with_mut(|l| l.timestamp = now + seconds);
     }
 
+    fn sla_of(
+        f: &Fixture<'_>,
+        reviewer: &Address,
+        milestone_idx: u32,
+    ) -> Option<ReviewerSlaRecord> {
+        let sla_id = milestone_sla_id(f.grant_id, milestone_idx);
+        f.env
+            .as_contract(&f.contract_id, || get_sla(&f.env, reviewer, sla_id))
+    }
+
+    fn check_sla(f: &Fixture<'_>, reviewer: &Address, milestone_idx: u32) -> bool {
+        let sla_id = milestone_sla_id(f.grant_id, milestone_idx);
+        f.env.as_contract(&f.contract_id, || {
+            check_and_mark_breach(&f.env, reviewer, sla_id)
+        })
+    }
+
     #[test]
     fn test_milestone_sla_id_is_unique_per_grant_and_milestone() {
         assert_eq!(milestone_sla_id(0, 0), 0);
@@ -237,10 +254,8 @@ mod tests {
     fn test_accepting_an_assignment_registers_an_sla_per_milestone() {
         let f = setup_assigned_reviewer();
 
-        let sla = f
-            .client
-            .reviewer_get_sla(&f.reviewer, &f.grant_id, &0)
-            .expect("accepting an assignment should register an SLA");
+        let sla =
+            sla_of(&f, &f.reviewer, 0).expect("accepting an assignment should register an SLA");
         assert_eq!(sla.reviewer, f.reviewer);
         assert_eq!(sla.deadline, DEFAULT_REVIEWER_SLA_SECONDS);
         assert!(!sla.fulfilled);
@@ -255,13 +270,10 @@ mod tests {
         f.client
             .milestone_vote(&f.grant_id, &0, &f.reviewer, &true, &None);
 
-        let sla = f
-            .client
-            .reviewer_get_sla(&f.reviewer, &f.grant_id, &0)
-            .unwrap();
+        let sla = sla_of(&f, &f.reviewer, 0).unwrap();
         assert!(sla.fulfilled);
         assert!(!sla.breached);
-        assert!(!f.client.check_reviewer_sla(&f.reviewer, &f.grant_id, &0));
+        assert!(!check_sla(&f, &f.reviewer, 0));
 
         f.env.as_contract(&f.contract_id, || {
             let participation = reviewer_reward::get_participation(&f.env, &f.reviewer, f.grant_id)
@@ -277,15 +289,12 @@ mod tests {
         // The reviewer sits on the assignment past their deadline.
         advance(&f.env, DEFAULT_REVIEWER_SLA_SECONDS + 1);
 
-        assert!(f.client.check_reviewer_sla(&f.reviewer, &f.grant_id, &0));
+        assert!(check_sla(&f, &f.reviewer, 0));
 
         f.client
             .milestone_vote(&f.grant_id, &0, &f.reviewer, &true, &None);
 
-        let sla = f
-            .client
-            .reviewer_get_sla(&f.reviewer, &f.grant_id, &0)
-            .unwrap();
+        let sla = sla_of(&f, &f.reviewer, 0).unwrap();
         assert!(sla.breached, "deadline passed without a vote");
         assert!(!sla.fulfilled, "a late vote must not fulfill the SLA");
 
@@ -313,10 +322,7 @@ mod tests {
         f.client
             .milestone_vote(&f.grant_id, &0, &f.reviewer, &true, &None);
 
-        let sla = f
-            .client
-            .reviewer_get_sla(&f.reviewer, &f.grant_id, &0)
-            .unwrap();
+        let sla = sla_of(&f, &f.reviewer, 0).unwrap();
         assert!(sla.breached);
         assert!(!sla.fulfilled);
 
@@ -330,11 +336,8 @@ mod tests {
         let f = setup_assigned_reviewer();
         let stranger = Address::generate(&f.env);
 
-        assert!(f
-            .client
-            .reviewer_get_sla(&stranger, &f.grant_id, &0)
-            .is_none());
-        assert!(!f.client.check_reviewer_sla(&stranger, &f.grant_id, &0));
+        assert!(sla_of(&f, &stranger, 0).is_none());
+        assert!(!check_sla(&f, &stranger, 0));
 
         // Unassigned reviewers keep accruing as before.
         f.env.as_contract(&f.contract_id, || {
