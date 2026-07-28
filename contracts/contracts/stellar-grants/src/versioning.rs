@@ -275,18 +275,32 @@ pub fn apply_amendment(
     Ok(snapshot)
 }
 
-/// Parse a Soroban String to i128 (simplified: returns None for safety)
-fn parse_i128_from_string(_s: &String) -> Option<i128> {
-    // Parsing Soroban Strings is non-trivial; for now return None as a safe default
-    // In a production implementation, convert to bytes and parse manually
-    None
+fn parse_i128_from_string(s: &String) -> Option<i128> {
+    let bytes = s.to_bytes();
+    let negative = bytes.get(0)? == b'-';
+    let start = if negative { 1 } else { 0 };
+    if bytes.len() == start {
+        return None;
+    }
+
+    let mut value = 0i128;
+    for i in start..bytes.len() {
+        let digit = bytes.get(i)?.checked_sub(b'0')?;
+        if digit > 9 {
+            return None;
+        }
+        value = value.checked_mul(10)?;
+        value = if negative {
+            value.checked_sub(digit as i128)?
+        } else {
+            value.checked_add(digit as i128)?
+        };
+    }
+    Some(value)
 }
 
-/// Parse a Soroban String to u32 (simplified: returns None for safety)
-fn parse_u32_from_string(_s: &String) -> Option<u32> {
-    // Parsing Soroban Strings is non-trivial; for now return None as a safe default
-    // In a production implementation, convert to bytes and parse manually
-    None
+fn parse_u32_from_string(s: &String) -> Option<u32> {
+    u32::try_from(parse_i128_from_string(s)?).ok()
 }
 
 /// Return a specific version snapshot.
@@ -317,9 +331,15 @@ mod tests {
     use soroban_sdk::testutils::Address as _;
     use soroban_sdk::vec;
 
-    fn seed_grant(env: &Env, owner: &Address, total_amount: i128, total_milestones: u32) -> u64 {
+    fn seed_grant(
+        env: &Env,
+        id: u64,
+        owner: &Address,
+        total_amount: i128,
+        total_milestones: u32,
+    ) -> u64 {
         let grant = Grant {
-            id: 1,
+            id,
             owner: owner.clone(),
             title: String::from_str(env, "Original title"),
             description: String::from_str(env, "Original description"),
@@ -339,6 +359,24 @@ mod tests {
         Storage::set_grant(env, grant.id, &grant);
         create_initial_version(env, &grant);
         grant.id
+    }
+
+    fn set_reviewers(env: &Env, grant_id: u64, reviewers: Vec<Address>) {
+        let mut grant = Storage::get_grant(env, grant_id).unwrap();
+        grant.reviewers = reviewers;
+        Storage::set_grant(env, grant_id, &grant);
+    }
+
+    fn propose_field(env: &Env, owner: &Address, grant_id: u64, name: &str, value: &str) -> u32 {
+        propose_amendment(
+            env,
+            owner,
+            grant_id,
+            vec![env, field(env, name)],
+            vec![env, String::from_str(env, value)],
+            String::from_str(env, "test"),
+        )
+        .unwrap()
     }
 
     #[test]
@@ -368,7 +406,7 @@ mod tests {
         let owner = Address::generate(&env);
 
         env.as_contract(&contract_id, || {
-            let grant_id = seed_grant(&env, &owner, 5_000_000, 4);
+            let grant_id = seed_grant(&env, 1, &owner, 5_000_000, 4);
 
             let version = propose_amendment(
                 &env,
@@ -396,7 +434,7 @@ mod tests {
         let owner = Address::generate(&env);
 
         env.as_contract(&contract_id, || {
-            let grant_id = seed_grant(&env, &owner, 5_000_000, 4);
+            let grant_id = seed_grant(&env, 1, &owner, 5_000_000, 4);
 
             let version = propose_amendment(
                 &env,
@@ -418,13 +456,60 @@ mod tests {
     }
 
     #[test]
-    fn test_propose_amendment_records_previous_values_for_all_fields() {
+    fn test_materiality_and_rejection_quorum() {
         let env = Env::default();
         let contract_id = env.register(crate::StellarGrantsContract, ());
         let owner = Address::generate(&env);
 
         env.as_contract(&contract_id, || {
-            let grant_id = seed_grant(&env, &owner, 1_234, 2);
+            let non_material = seed_grant(&env, 1, &owner, 1_000, 2);
+            let version = propose_field(&env, &owner, non_material, "description", "Clarified");
+            assert_eq!(
+                Storage::get_amendment(&env, non_material, version)
+                    .unwrap()
+                    .status,
+                AmendmentStatus::Approved
+            );
+
+            let material = seed_grant(&env, 2, &owner, 1_000, 2);
+            let version = propose_field(&env, &owner, material, "title", "New title");
+            assert_eq!(
+                Storage::get_amendment(&env, material, version)
+                    .unwrap()
+                    .status,
+                AmendmentStatus::Proposed
+            );
+
+            let rejected = seed_grant(&env, 3, &owner, 1_000, 2);
+            let reviewer1 = Address::generate(&env);
+            let reviewer2 = Address::generate(&env);
+            set_reviewers(
+                &env,
+                rejected,
+                vec![&env, reviewer1.clone(), reviewer2.clone()],
+            );
+            let version = propose_field(&env, &owner, rejected, "title", "New title");
+            assert_eq!(
+                vote_amendment(&env, &reviewer1, rejected, version, false),
+                Ok(AmendmentStatus::Proposed)
+            );
+            assert_eq!(
+                vote_amendment(&env, &reviewer2, rejected, version, false),
+                Ok(AmendmentStatus::Rejected)
+            );
+        });
+    }
+
+    #[test]
+    fn test_propose_amendment_records_previous_values_for_all_fields() {
+        let env = Env::default();
+        let contract_id = env.register(crate::StellarGrantsContract, ());
+        let owner = Address::generate(&env);
+        let reviewer = Address::generate(&env);
+
+        env.as_contract(&contract_id, || {
+            let grant_id = seed_grant(&env, 1, &owner, 1_234, 2);
+            set_reviewers(&env, grant_id, vec![&env, reviewer.clone()]);
 
             let version = propose_amendment(
                 &env,
@@ -460,6 +545,18 @@ mod tests {
                     String::from_str(&env, "2"),
                 ]
             );
+
+            assert_eq!(
+                vote_amendment(&env, &reviewer, grant_id, version, true),
+                Ok(AmendmentStatus::Approved)
+            );
+            let snapshot = apply_amendment(&env, grant_id, version).unwrap();
+            let grant = Storage::get_grant(&env, grant_id).unwrap();
+            assert_eq!(
+                (snapshot.total_amount, snapshot.total_milestones),
+                (9_999, 3)
+            );
+            assert_eq!((grant.total_amount, grant.total_milestones), (9_999, 3));
         });
     }
 }
