@@ -186,30 +186,37 @@ mod tests {
     use crate::types::ContributionType;
     use soroban_sdk::testutils::Address as _;
 
+    fn with_contract(env: &soroban_sdk::Env, f: impl FnOnce()) {
+        let contract_id = env.register(crate::StellarGrantsContract, ());
+        env.as_contract(&contract_id, f);
+    }
+
     #[test]
     fn test_record_append_and_retrieve() {
         let env = soroban_sdk::Env::default();
         let actor = Address::generate(&env);
         let co_contributors = Vec::new(&env);
 
-        record(
-            &env,
-            ContributionType::GrantCreated,
-            &actor,
-            1,
-            None,
-            Some(1000),
-            None,
-            co_contributors,
-        );
+        with_contract(&env, || {
+            record(
+                &env,
+                ContributionType::GrantCreated,
+                &actor,
+                1,
+                None,
+                Some(1000),
+                None,
+                co_contributors,
+            );
 
-        let total = total_records(&env);
-        assert_eq!(total, 1);
+            let total = total_records(&env);
+            assert_eq!(total, 1);
 
-        let record = get_record(&env, 1).expect("Record should exist");
-        assert_eq!(record.id, 1);
-        assert_eq!(record.grant_id, 1);
-        assert_eq!(record.contribution_type, ContributionType::GrantCreated);
+            let record = get_record(&env, 1).expect("Record should exist");
+            assert_eq!(record.id, 1);
+            assert_eq!(record.grant_id, 1);
+            assert_eq!(record.contribution_type, ContributionType::GrantCreated);
+        });
     }
 
     #[test]
@@ -218,30 +225,32 @@ mod tests {
         let actor = Address::generate(&env);
         let co_contributors = Vec::new(&env);
 
-        record(
-            &env,
-            ContributionType::GrantCreated,
-            &actor,
-            1,
-            None,
-            Some(1000),
-            None,
-            co_contributors.clone(),
-        );
+        with_contract(&env, || {
+            record(
+                &env,
+                ContributionType::GrantCreated,
+                &actor,
+                1,
+                None,
+                Some(1000),
+                None,
+                co_contributors.clone(),
+            );
 
-        record(
-            &env,
-            ContributionType::MilestoneDelivered,
-            &actor,
-            1,
-            Some(0),
-            Some(500),
-            None,
-            co_contributors,
-        );
+            record(
+                &env,
+                ContributionType::MilestoneDelivered,
+                &actor,
+                1,
+                Some(0),
+                Some(500),
+                None,
+                co_contributors,
+            );
 
-        let records = get_by_address(&env, &actor, 0, 10);
-        assert_eq!(records.len(), 2);
+            let records = get_by_address(&env, &actor, 0, 10);
+            assert_eq!(records.len(), 2);
+        });
     }
 
     #[test]
@@ -251,30 +260,32 @@ mod tests {
         let actor2 = Address::generate(&env);
         let co_contributors = Vec::new(&env);
 
-        record(
-            &env,
-            ContributionType::GrantCreated,
-            &actor1,
-            1,
-            None,
-            Some(1000),
-            None,
-            co_contributors.clone(),
-        );
+        with_contract(&env, || {
+            record(
+                &env,
+                ContributionType::GrantCreated,
+                &actor1,
+                1,
+                None,
+                Some(1000),
+                None,
+                co_contributors.clone(),
+            );
 
-        record(
-            &env,
-            ContributionType::MilestoneReviewed,
-            &actor2,
-            1,
-            Some(0),
-            None,
-            None,
-            co_contributors,
-        );
+            record(
+                &env,
+                ContributionType::MilestoneReviewed,
+                &actor2,
+                1,
+                Some(0),
+                None,
+                None,
+                co_contributors,
+            );
 
-        let records = get_by_grant(&env, 1);
-        assert_eq!(records.len(), 2);
+            let records = get_by_grant(&env, 1);
+            assert_eq!(records.len(), 2);
+        });
     }
 
     #[test]
@@ -283,21 +294,23 @@ mod tests {
         let actor = Address::generate(&env);
         let co_contributors = Vec::new(&env);
 
-        record(
-            &env,
-            ContributionType::GrantCreated,
-            &actor,
-            1,
-            None,
-            Some(1000),
-            None,
-            co_contributors,
-        );
+        with_contract(&env, || {
+            record(
+                &env,
+                ContributionType::GrantCreated,
+                &actor,
+                1,
+                None,
+                Some(1000),
+                None,
+                co_contributors,
+            );
 
-        let hash1 = proof_hash(&env, 1).expect("Hash should be generated");
-        let hash2 = proof_hash(&env, 1).expect("Hash should be generated");
+            let hash1 = proof_hash(&env, 1).expect("Hash should be generated");
+            let hash2 = proof_hash(&env, 1).expect("Hash should be generated");
 
-        assert_eq!(hash1, hash2);
+            assert_eq!(hash1, hash2);
+        });
     }
 
     #[test]
@@ -306,32 +319,34 @@ mod tests {
         let actor = Address::generate(&env);
         let co_contributors = Vec::new(&env);
 
-        record(
-            &env,
-            ContributionType::GrantCreated,
-            &actor,
-            1,
-            None,
-            Some(1000),
-            None,
-            co_contributors.clone(),
-        );
+        with_contract(&env, || {
+            record(
+                &env,
+                ContributionType::GrantCreated,
+                &actor,
+                1,
+                None,
+                Some(1000),
+                None,
+                co_contributors.clone(),
+            );
 
-        record(
-            &env,
-            ContributionType::GrantFunded,
-            &actor,
-            2,
-            None,
-            Some(2000),
-            None,
-            co_contributors,
-        );
+            record(
+                &env,
+                ContributionType::GrantFunded,
+                &actor,
+                2,
+                None,
+                Some(2000),
+                None,
+                co_contributors,
+            );
 
-        let hash1 = proof_hash(&env, 1).expect("Hash should be generated");
-        let hash2 = proof_hash(&env, 2).expect("Hash should be generated");
+            let hash1 = proof_hash(&env, 1).expect("Hash should be generated");
+            let hash2 = proof_hash(&env, 2).expect("Hash should be generated");
 
-        assert_ne!(hash1, hash2);
+            assert_ne!(hash1, hash2);
+        });
     }
 
     #[test]
@@ -340,25 +355,27 @@ mod tests {
         let actor = Address::generate(&env);
         let co_contributors = Vec::new(&env);
 
-        for i in 0..5 {
-            record(
-                &env,
-                ContributionType::GrantCreated,
-                &actor,
-                i as u64,
-                None,
-                Some(1000),
-                None,
-                co_contributors.clone(),
-            );
-        }
+        with_contract(&env, || {
+            for i in 0..5 {
+                record(
+                    &env,
+                    ContributionType::GrantCreated,
+                    &actor,
+                    i as u64,
+                    None,
+                    Some(1000),
+                    None,
+                    co_contributors.clone(),
+                );
+            }
 
-        let page1 = get_by_address(&env, &actor, 0, 2);
-        let page2 = get_by_address(&env, &actor, 2, 2);
-        let page3 = get_by_address(&env, &actor, 4, 2);
+            let page1 = get_by_address(&env, &actor, 0, 2);
+            let page2 = get_by_address(&env, &actor, 2, 2);
+            let page3 = get_by_address(&env, &actor, 4, 2);
 
-        assert_eq!(page1.len(), 2);
-        assert_eq!(page2.len(), 2);
-        assert_eq!(page3.len(), 1);
+            assert_eq!(page1.len(), 2);
+            assert_eq!(page2.len(), 2);
+            assert_eq!(page3.len(), 1);
+        });
     }
 }
