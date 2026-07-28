@@ -39,6 +39,7 @@ mod constants;
 mod contributor_verification;
 mod cross_contract;
 mod crowdfund;
+mod dao;
 mod data_export;
 mod dispute;
 mod emergency;
@@ -104,6 +105,7 @@ mod syndication;
 #[cfg(test)]
 mod test;
 mod token_swap;
+mod treasury;
 mod types;
 mod versioning;
 mod waitlist;
@@ -121,31 +123,32 @@ pub use types::{
     CollateralRequirement, CollateralStatus, ComplianceAttestation, ComplianceLevel,
     ComplianceStatus, ConditionResult, ContractVersion, ContributionType, ContributorPortfolio,
     ContributorRegisterPayload, CriterionStatus, CrossChainProof, CrowdfundCampaign,
-    CrowdfundPledge, CrowdfundStatus, DashboardView, DecayConfig, DecayType, DexConfig, Dispute,
-    DisputeStatus, EscrowAccount, EscrowLifecycleState, EscrowMode, EscrowReleaseApproval,
-    EscrowReleaseRequest, EscrowState, EvidenceField, EvidenceFieldType, EvidenceSchema,
-    ExportGrant, ExportGrantPage, ExportMilestone, ExportMilestonePage, ExtensionRequest,
-    ExtensionStatus, FeeRecord, ForkRecord, FunderGrantSummary, FunderLedger, FunderReport,
-    FunderTokenSummary, Grant, GrantArchetype, GrantCard, GrantCategory, GrantDetailView,
-    GrantFund, GrantPortfolio, GrantStatus, GrantSummary, GrantTag, GrantTemplate, GrantVersion,
-    HookCallResult, HookEvent, HookRegistration, InsuranceClaim, InsurancePolicy, Invoice,
-    InvoiceStatus, IpRights, LicenseRecord, LicenseType, LineItem, LockupRecord, LockupStatus,
-    MatchingAllocation, MatchingContribution, MatchingRound, MerkleCommitment, MerkleProof,
-    MigrationRecord, Milestone, MilestoneDag, MilestoneDependency, MilestoneNft, MilestoneState,
-    MilestoneSubmission, MilestoneSubmitPayload, MilestoneTemplate, MultiGrantBatchResult,
-    MultisigProposal, MultisigSigner, NftMetadata, NotificationEvent, OracleConfig, ParamRecord,
-    ParamType, ParamValue, PauseRecord, PaymentSplit, PaymentStream, PerformanceBond,
-    PortfolioFilter, PortfolioStats, PriceQuote, ProtocolConfig, ProtocolMetrics, ProtocolModule,
-    ProvenanceRecord, PublicReview, PublicReviewSignal, QuadraticVoteRecord, RateLimitAction,
-    ReferralCode, ReferralRecord, ReferralReward, RegistryEntry, RegistryEntryType, RelayAllowance,
-    RelayConfig, RelayDispatch, RelayRecord, RelayableAction, ReleaseCondition, RenewalProposal,
-    RenewalStatus, ReputationTier, RevenueEpoch, ReviewParticipation, ReviewerAvailability,
-    ReviewerProfile, ReviewerRequest, ReviewerRequestStatus, ReviewerRewardPool,
-    ReviewerRewardRecord, ReviewerView, Role, RoleAssignment, RollingWindow, ScoreResult,
-    ScoringDimension, ScoringRubric, ScoringWeight, SignatureStatus, SplitRecipient,
-    StakerEpochRecord, StructuredEvidence, Subscription, SubscriptionScope, SwapResult, SwapRoute,
-    SyndicateGrant, SyndicateMember, SyndicateStatus, TemplateCategory, TimerRecord,
-    TimerTriggerType, TokenMetric, TransferProposal, TransferableRole, VerificationAttestation,
+    CrowdfundPledge, CrowdfundStatus, DaoProposal, DaoProposalStatus, DaoProposalType,
+    DashboardView, DecayConfig, DecayType, DexConfig, Dispute, DisputeStatus, EscrowAccount,
+    EscrowLifecycleState, EscrowMode, EscrowReleaseApproval, EscrowReleaseRequest, EscrowState,
+    EvidenceField, EvidenceFieldType, EvidenceSchema, ExportGrant, ExportGrantPage,
+    ExportMilestone, ExportMilestonePage, ExtensionRequest, ExtensionStatus, FeeRecord, ForkRecord,
+    FunderGrantSummary, FunderLedger, FunderReport, FunderTokenSummary, Grant, GrantArchetype,
+    GrantCard, GrantCategory, GrantDetailView, GrantFund, GrantPortfolio, GrantStatus,
+    GrantSummary, GrantTag, GrantTemplate, GrantVersion, HookCallResult, HookEvent,
+    HookRegistration, InsuranceClaim, InsurancePolicy, Invoice, InvoiceStatus, IpRights,
+    LicenseRecord, LicenseType, LineItem, LockupRecord, LockupStatus, MatchingAllocation,
+    MatchingContribution, MatchingRound, MerkleCommitment, MerkleProof, MigrationRecord, Milestone,
+    MilestoneDag, MilestoneDependency, MilestoneNft, MilestoneState, MilestoneSubmission,
+    MilestoneSubmitPayload, MilestoneTemplate, MultiGrantBatchResult, MultisigProposal,
+    MultisigSigner, NftMetadata, NotificationEvent, OracleConfig, ParamRecord, ParamType,
+    ParamValue, PauseRecord, PaymentSplit, PaymentStream, PerformanceBond, PortfolioFilter,
+    PortfolioStats, PriceQuote, ProtocolConfig, ProtocolMetrics, ProtocolModule, ProvenanceRecord,
+    PublicReview, PublicReviewSignal, QuadraticVoteRecord, RateLimitAction, ReferralCode,
+    ReferralRecord, ReferralReward, RegistryEntry, RegistryEntryType, RelayAllowance, RelayConfig,
+    RelayDispatch, RelayRecord, RelayableAction, ReleaseCondition, RenewalProposal, RenewalStatus,
+    ReputationTier, RevenueEpoch, ReviewParticipation, ReviewerAvailability, ReviewerProfile,
+    ReviewerRequest, ReviewerRequestStatus, ReviewerRewardPool, ReviewerRewardRecord, ReviewerView,
+    Role, RoleAssignment, RollingWindow, ScoreResult, ScoringDimension, ScoringRubric,
+    ScoringWeight, SignatureStatus, SplitRecipient, StakerEpochRecord, StructuredEvidence,
+    Subscription, SubscriptionScope, SwapResult, SwapRoute, SyndicateGrant, SyndicateMember,
+    SyndicateStatus, TemplateCategory, TimerRecord, TimerTriggerType, TokenMetric,
+    TransferProposal, TransferableRole, TreasurySnapshot, VerificationAttestation,
     VerificationLevel, VerificationStatus, VoiceCredits, VotingMechanism, WaitlistConfig,
     WaitlistEntry, WhitelistEntry, WhitelistMode, WhitelistScope, WithdrawStreamPayload,
 };
@@ -172,6 +175,10 @@ impl StellarGrantsContract {
         new_admin: Address,
     ) -> Result<(), ContractError> {
         caller.require_auth();
+        // Issue #681: once DAO mode is enabled, admin rotation must go through
+        // a passed-and-executed DAO proposal (DaoProposalType::ChangeAdmin)
+        // instead of this direct path.
+        dao::require_dao_mode_disabled(&env)?;
         if let Some(current_admin) = Storage::get_global_admin(&env) {
             if current_admin != caller {
                 return Err(ContractError::Unauthorized);
@@ -2738,6 +2745,137 @@ impl StellarGrantsContract {
             &preferred_token,
             amount,
         )
+    }
+
+    // ── Issue #681: DAO Governance Entry Points ───────────────────────────────
+
+    pub fn set_dao_mode(env: Env, admin: Address, enabled: bool) -> Result<(), ContractError> {
+        dao::set_dao_mode(&env, &admin, enabled)
+    }
+
+    pub fn is_dao_mode_enabled(env: Env) -> bool {
+        dao::is_dao_mode_enabled(&env)
+    }
+
+    pub fn set_dao_voting_period(
+        env: Env,
+        admin: Address,
+        ledgers: u32,
+    ) -> Result<(), ContractError> {
+        dao::set_voting_period(&env, &admin, ledgers)
+    }
+
+    pub fn set_dao_quorum_votes(
+        env: Env,
+        admin: Address,
+        quorum: u64,
+    ) -> Result<(), ContractError> {
+        dao::set_quorum_votes(&env, &admin, quorum)
+    }
+
+    pub fn dao_create_proposal(
+        env: Env,
+        proposer: Address,
+        title: String,
+        description: String,
+        proposal_type: DaoProposalType,
+    ) -> Result<u64, ContractError> {
+        proposer.require_auth();
+        dao::create_proposal(&env, &proposer, title, description, proposal_type)
+    }
+
+    pub fn dao_vote(
+        env: Env,
+        voter: Address,
+        proposal_id: u64,
+        support: bool,
+    ) -> Result<DaoProposal, ContractError> {
+        voter.require_auth();
+        dao::vote(&env, &voter, proposal_id, support)
+    }
+
+    pub fn dao_finalize(env: Env, proposal_id: u64) -> Result<DaoProposalStatus, ContractError> {
+        dao::finalize(&env, proposal_id)
+    }
+
+    pub fn dao_execute(env: Env, executor: Address, proposal_id: u64) -> Result<(), ContractError> {
+        executor.require_auth();
+        dao::execute(&env, &executor, proposal_id)
+    }
+
+    pub fn dao_cancel(env: Env, caller: Address, proposal_id: u64) -> Result<(), ContractError> {
+        caller.require_auth();
+        dao::cancel(&env, &caller, proposal_id)
+    }
+
+    pub fn get_dao_proposal(env: Env, proposal_id: u64) -> Option<DaoProposal> {
+        dao::get_proposal(&env, proposal_id)
+    }
+
+    // ── Issue #681: Treasury Ledger Entry Points ──────────────────────────────
+    //
+    // Separate from `slash_reviewer`'s existing single-address payout
+    // mechanism (`Storage::get_treasury`/`set_treasury`) — this is a
+    // spendable per-token ledger of funds actually held by the contract.
+    // See PR description for the full design rationale.
+
+    pub fn set_treasury_manager(
+        env: Env,
+        admin: Address,
+        treasury: Address,
+    ) -> Result<(), ContractError> {
+        admin.require_auth();
+        treasury::set_treasury_address(&env, &admin, &treasury)
+    }
+
+    /// Admin-only bookkeeping entry: records that `amount` of `token` was
+    /// separately transferred into the contract (e.g. protocol fees). Gated
+    /// to the already-fully-trusted global admin because this call does not
+    /// itself move any tokens — an unauthenticated caller could otherwise
+    /// inflate the ledger and enable a later `treasury_withdraw` to drain
+    /// unrelated contract funds.
+    pub fn treasury_deposit(
+        env: Env,
+        admin: Address,
+        token: Address,
+        from: Address,
+        amount: i128,
+    ) -> Result<i128, ContractError> {
+        admin.require_auth();
+        if Storage::get_global_admin(&env) != Some(admin.clone()) {
+            return Err(ContractError::Unauthorized);
+        }
+        treasury::deposit(&env, &token, &from, amount)
+    }
+
+    pub fn treasury_withdraw(
+        env: Env,
+        admin: Address,
+        token: Address,
+        to: Address,
+        amount: i128,
+    ) -> Result<i128, ContractError> {
+        admin.require_auth();
+        treasury::withdraw(&env, &admin, &token, &to, amount)
+    }
+
+    pub fn treasury_reallocate(
+        env: Env,
+        admin: Address,
+        from_token: Address,
+        to_token: Address,
+        amount: i128,
+    ) -> Result<(), ContractError> {
+        admin.require_auth();
+        treasury::reallocate(&env, &admin, &from_token, &to_token, amount)
+    }
+
+    pub fn treasury_balance(env: Env, token: Address) -> i128 {
+        treasury::balance(&env, &token)
+    }
+
+    pub fn treasury_snapshot(env: Env, token: Address) -> TreasurySnapshot {
+        treasury::snapshot(&env, &token)
     }
 
     // ── Issue #581: Milestone Checklist Entry Points ──────────────────────────
