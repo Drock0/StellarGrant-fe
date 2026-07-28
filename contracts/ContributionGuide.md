@@ -44,14 +44,14 @@ Make sure you have the following installed before contributing:
 |------|---------|---------|
 | [Rust](https://rustup.rs/) | `>= 1.78` | Smart contract language |
 | [stellar CLI](https://developers.stellar.org/docs/tools/stellar-cli) | Latest | Deploy & invoke contracts |
-| `wasm32-unknown-unknown` target | — | Compile contracts to WASM |
+| `wasm32v1-none` target | — | Compile contracts to WASM |
 | Node.js | `>= 18` | TypeScript client examples |
 | Git | Any | Version control |
 
 Install the WASM target:
 
 ```bash
-rustup target add wasm32-unknown-unknown
+rustup target add wasm32v1-none
 ```
 
 Install the Stellar CLI:
@@ -93,7 +93,7 @@ make deploy-testnet
 Or using Cargo directly:
 
 ```bash
-cargo build --target wasm32-unknown-unknown --release
+cargo build --target wasm32v1-none --release
 cargo test
 cargo clippy -- -D warnings
 cargo fmt --check
