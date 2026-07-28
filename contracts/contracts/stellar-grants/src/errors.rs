@@ -185,4 +185,6 @@ pub enum ContractError {
     LockupAlreadyRevoked = 144,
     // Params (#700)
     DaoVoteRequired = 145,
+    // Public review cap (#808)
+    TooManyPublicReviews = 146,
 }
