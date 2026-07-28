@@ -2710,6 +2710,7 @@ impl StellarGrantsContract {
         route: SwapRoute,
         amount_in: i128,
     ) -> Result<SwapResult, ContractError> {
+        caller.require_auth();
         token_swap::swap(&env, &caller, route, amount_in)
     }
 
@@ -2730,6 +2731,7 @@ impl StellarGrantsContract {
 
     pub fn swap_and_pay(
         env: Env,
+        payer: Address,
         grant_id: u64,
         recipient: Address,
         grant_token: Address,
@@ -2739,6 +2741,7 @@ impl StellarGrantsContract {
         emergency::require_not_paused(&env)?;
         token_swap::swap_and_pay(
             &env,
+            &payer,
             grant_id,
             &recipient,
             &grant_token,
