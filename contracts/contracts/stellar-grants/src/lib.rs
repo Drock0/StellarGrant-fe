@@ -101,6 +101,8 @@ mod split_payment;
 mod storage;
 mod streaming;
 mod syndication;
+#[cfg(test)]
+mod test;
 mod token_swap;
 mod types;
 mod versioning;
@@ -499,6 +501,7 @@ impl StellarGrantsContract {
         }
         let remaining_balance = math::safe_sub(grant.escrow_balance, total_paid)?;
 
+        let mut multisig_pending = false;
         if total_paid > 0 {
             // Pay each milestone individually so that registered splits are honoured.
             let protocol_cfg = config::get_config(env);
@@ -524,12 +527,16 @@ impl StellarGrantsContract {
                 }
             }
             if owner_amount > 0 {
-                let config: ProtocolConfig = env
-                    .storage()
-                    .persistent()
-                    .get(&storage::keys::DataKey::Config)
-                    .unwrap();
+                let config: ProtocolConfig = config::get_config(env);
                 if config.multisig_threshold > 0 && owner_amount >= config.multisig_threshold {
+                    // Issue #821: a multisig request only reserves the payout;
+                    // it must not be treated as a completed release until a
+                    // signer actually executes it via `execute_escrow_release`.
+                    if let Some(existing) = crate::escrow_multisig::get_request(env, grant_id, 0) {
+                        if !existing.executed {
+                            return Err(ContractError::InvalidState);
+                        }
+                    }
                     crate::escrow_multisig::create_request(
                         env,
                         grant_id,
@@ -537,6 +544,7 @@ impl StellarGrantsContract {
                         owner_amount,
                         grant.owner.clone(),
                     )?;
+                    multisig_pending = true;
                 } else {
                     escrow::release(env, grant_id, &grant.owner, owner_amount)?;
                 }
@@ -546,7 +554,30 @@ impl StellarGrantsContract {
             escrow::refund_all(env, grant_id)?;
         }
 
-        // Re-load grant after escrow mutations.
+        if multisig_pending {
+            // Grant stays Active with escrow untouched (beyond what was
+            // already paid out above) until execute_escrow_release runs.
+            let mut escrow_state = Storage::get_escrow_state(env, grant_id);
+            escrow_state.lifecycle = EscrowLifecycleState::AwaitingMultisig;
+            escrow_state.quorum_ready = true;
+            Storage::set_escrow_state(env, grant_id, &escrow_state);
+            return Ok(());
+        }
+
+        Self::complete_grant(env, grant_id, total_paid, remaining_balance)
+    }
+
+    /// Finish a grant once its full payout has actually left escrow: marks
+    /// the grant Completed, zeroes escrow_balance, and fires the completion
+    /// side-effects. Called either directly from `finalize_grant_release`
+    /// (funds already released) or from `execute_escrow_release` once a
+    /// pending multisig request has been executed (Issue #821).
+    fn complete_grant(
+        env: &Env,
+        grant_id: u64,
+        total_paid: i128,
+        remaining_balance: i128,
+    ) -> Result<(), ContractError> {
         let mut grant = Storage::get_grant(env, grant_id).ok_or(ContractError::GrantNotFound)?;
         grant.status = GrantStatus::Completed;
         grant.escrow_balance = 0;
@@ -2140,6 +2171,92 @@ impl StellarGrantsContract {
     /// Helper to encode a GrantWithdraw action payload from a grant_id.
     pub fn encode_grant_withdraw_payload(env: Env, grant_id: u64) -> Bytes {
         multisig::encode_grant_withdraw(&env, grant_id)
+    }
+
+    // ── Issue #821: Escrow Multisig Release Entrypoints ───────────────────────
+
+    /// Approve a pending escrow release request created when a milestone
+    /// payout crosses `ProtocolConfig::multisig_threshold`. The grant stays
+    /// Active (escrow_state.lifecycle == AwaitingMultisig) until enough
+    /// signers approve and `execute_escrow_release` is called.
+    pub fn approve_escrow_release(
+        env: Env,
+        approver: Address,
+        grant_id: u64,
+        milestone_idx: u32,
+    ) -> Result<(), ContractError> {
+        escrow_multisig::approve(&env, approver, grant_id, milestone_idx)
+    }
+
+    /// Execute a fully-approved escrow release request: transfers the
+    /// reserved funds to the recipient and only then marks the grant
+    /// Completed / zeroes escrow_balance. This is the sole path by which a
+    /// multisig-gated payout can complete the grant.
+    pub fn execute_escrow_release(
+        env: Env,
+        grant_id: u64,
+        milestone_idx: u32,
+    ) -> Result<(), ContractError> {
+        reentrancy::with_non_reentrant(&env, || {
+            let grant = Storage::get_grant(&env, grant_id).ok_or(ContractError::GrantNotFound)?;
+            escrow_multisig::execute_release(&env, grant_id, milestone_idx)?;
+            let total_paid =
+                Self::compute_total_paid_if_quorum_ready(&env, grant_id, grant.total_milestones)?;
+            Self::complete_grant(&env, grant_id, total_paid, 0)
+        })
+    }
+
+    /// Return a pending (or executed) escrow release request, if any.
+    pub fn get_escrow_release_request(
+        env: Env,
+        grant_id: u64,
+        milestone_idx: u32,
+    ) -> Option<EscrowReleaseRequest> {
+        escrow_multisig::get_request(&env, grant_id, milestone_idx)
+    }
+
+    // ── Issue #819: Cross-Chain Proof Bridge Entrypoints ──────────────────────
+
+    /// Register a relayer authorized to submit cross-chain milestone proofs
+    /// for the given chains. Global admin only.
+    pub fn bridge_register_relayer(
+        env: Env,
+        admin: Address,
+        relayer: Address,
+        authorized_chains: Vec<ChainId>,
+    ) -> Result<(), ContractError> {
+        grant_bridge::register_relayer(&env, &admin, relayer, authorized_chains)
+    }
+
+    /// Deactivate a previously registered relayer. Global admin only.
+    pub fn bridge_deactivate_relayer(
+        env: Env,
+        admin: Address,
+        relayer: Address,
+    ) -> Result<(), ContractError> {
+        grant_bridge::deactivate_relayer(&env, &admin, relayer)
+    }
+
+    /// Submit a cross-chain milestone proof. Caller must be an active,
+    /// authorized relayer for the given chain.
+    pub fn bridge_submit_proof(
+        env: Env,
+        relayer: Address,
+        grant_id: u64,
+        milestone_idx: u32,
+        chain_id: ChainId,
+        tx_hash: String,
+    ) -> Result<(), ContractError> {
+        grant_bridge::submit_proof(&env, relayer, grant_id, milestone_idx, chain_id, tx_hash)
+    }
+
+    /// Return the stored cross-chain proof for a milestone, if any.
+    pub fn bridge_get_proof(
+        env: Env,
+        grant_id: u64,
+        milestone_idx: u32,
+    ) -> Option<CrossChainProof> {
+        grant_bridge::get_proof(&env, grant_id, milestone_idx)
     }
 
     // ── Issue #540: Protocol Metrics ──────────────────────────────────────────
@@ -4084,6 +4201,38 @@ impl StellarGrantsContract {
     /// Return an applicant's current position (1-indexed).
     pub fn waitlist_position(env: Env, applicant: Address, grant_id: u64) -> Option<u32> {
         waitlist::position_of(&env, &applicant, grant_id)
+    }
+
+    // ── Issue #818: Provenance Query Entrypoints ──────────────────────────
+
+    /// Return all provenance records for an address, paginated.
+    pub fn provenance_get_by_address(
+        env: Env,
+        address: Address,
+        offset: u32,
+        limit: u32,
+    ) -> Vec<ProvenanceRecord> {
+        provenance::get_by_address(&env, &address, offset, limit)
+    }
+
+    /// Return all provenance records for a grant.
+    pub fn provenance_get_by_grant(env: Env, grant_id: u64) -> Vec<ProvenanceRecord> {
+        provenance::get_by_grant(&env, grant_id)
+    }
+
+    /// Return a specific provenance record by global ID.
+    pub fn provenance_get_record(env: Env, record_id: u32) -> Option<ProvenanceRecord> {
+        provenance::get_record(&env, record_id)
+    }
+
+    /// Compute the cryptographic proof-of-contribution hash for a record.
+    pub fn provenance_proof_hash(env: Env, record_id: u32) -> Option<Bytes> {
+        provenance::proof_hash(&env, record_id)
+    }
+
+    /// Return the total number of provenance records recorded so far.
+    pub fn provenance_total_records(env: Env) -> u32 {
+        provenance::total_records(&env)
     }
 
     // ── Issue #622: Batched Multi-Key Storage Reads ──────────────────────
