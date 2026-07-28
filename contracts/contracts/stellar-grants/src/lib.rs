@@ -275,6 +275,12 @@ impl StellarGrantsContract {
             return Err(ContractError::InvalidInput);
         }
 
+        // Issue #816: enforce the GlobalContributor whitelist gate. Defaults
+        // to Open mode, so this is a no-op unless an admin restricts it.
+        if !whitelist::is_allowed(&env, &contributor, &WhitelistScope::GlobalContributor) {
+            return Err(ContractError::AddressNotWhitelisted);
+        }
+
         if Storage::get_contributor(&env, contributor.clone()).is_some() {
             return Err(ContractError::AlreadyRegistered);
         }
@@ -367,6 +373,8 @@ impl StellarGrantsContract {
             grant_index::on_status_changed(&env, grant_id, old_status, GrantStatus::Cancelled);
 
             Storage::set_grant(&env, grant_id, &grant);
+            // Issue #817: keep the data_export staleness/filter API fresh.
+            data_export::set_last_updated(&env, grant_id, env.ledger().timestamp());
 
             Events::emit_grant_cancelled(&env, grant_id, caller.clone(), reason, total_refundable);
 
@@ -584,6 +592,8 @@ impl StellarGrantsContract {
         grant.milestones_paid_out = grant.total_milestones;
         grant.timestamp = env.ledger().timestamp();
         Storage::set_grant(env, grant_id, &grant);
+        // Issue #817: keep the data_export staleness/filter API fresh.
+        data_export::set_last_updated(env, grant_id, env.ledger().timestamp());
 
         let mut escrow_state = Storage::get_escrow_state(env, grant_id);
         escrow_state.lifecycle = EscrowLifecycleState::Released;
@@ -635,6 +645,8 @@ impl StellarGrantsContract {
         )?;
 
         Storage::set_milestone(&env, grant_id, milestone_idx, &milestone);
+        // Issue #817: keep the data_export staleness/filter API fresh.
+        data_export::set_last_updated(&env, grant_id, env.ledger().timestamp());
 
         provenance::record(
             &env,
@@ -777,6 +789,8 @@ impl StellarGrantsContract {
         }
 
         Storage::set_milestone(&env, grant_id, milestone_idx, &milestone);
+        // Issue #817: keep the data_export staleness/filter API fresh.
+        data_export::set_last_updated(&env, grant_id, env.ledger().timestamp());
         Events::milestone_rejected(&env, grant_id, milestone_idx, reviewer, reason);
 
         Ok(majority_rejected)
@@ -4446,6 +4460,8 @@ fn apply_milestone_submission(
     };
 
     Storage::set_milestone(env, grant_id, milestone_idx, &milestone);
+    // Issue #817: keep the data_export staleness/filter API fresh.
+    data_export::set_last_updated(env, grant_id, env.ledger().timestamp());
     Events::emit_milestone_submitted(env, grant_id, milestone_idx, description);
 
     audit::log(

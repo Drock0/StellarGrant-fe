@@ -2,7 +2,7 @@ use soroban_sdk::{contractevent, token, Address, Env};
 
 use crate::errors::ContractError;
 use crate::storage::Storage;
-use crate::types::{PaymentStream, StreamStatus};
+use crate::types::{GrantStatus, PaymentStream, StreamStatus};
 
 // ── Events ────────────────────────────────────────────────────────────────────
 
@@ -68,6 +68,12 @@ pub fn create_stream(
     }
     if duration_ledgers == 0 {
         return Err(ContractError::InvalidInput);
+    }
+
+    // Issue #814: streams must be tied to a real, active grant.
+    let grant = Storage::get_grant(env, grant_id).ok_or(ContractError::GrantNotFound)?;
+    if grant.status != GrantStatus::Active {
+        return Err(ContractError::InvalidState);
     }
 
     let deposited = rate_per_ledger
@@ -309,8 +315,9 @@ pub fn get_stream(env: &Env, stream_id: u32) -> Result<PaymentStream, ContractEr
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::Grant;
     use soroban_sdk::testutils::{Address as _, Ledger};
-    use soroban_sdk::{token::StellarAssetClient, Address, Env};
+    use soroban_sdk::{token::StellarAssetClient, Address, Env, String};
 
     fn setup() -> (Env, Address, Address, Address, Address) {
         let env = Env::default();
@@ -325,7 +332,39 @@ mod tests {
         let stellar_asset = StellarAssetClient::new(&env, &token_contract);
         stellar_asset.mint(&sender, &10_000_000);
         let _ = admin;
+
+        // Streams must reference a real, active grant (Issue #814).
+        create_active_grant(&env, 1, &sender, &token_contract, GrantStatus::Active);
+
         (env, sender, recipient, token_contract, token_admin)
+    }
+
+    fn create_active_grant(
+        env: &Env,
+        id: u64,
+        owner: &Address,
+        token: &Address,
+        status: GrantStatus,
+    ) {
+        let grant = Grant {
+            id,
+            owner: owner.clone(),
+            title: String::from_str(env, "test grant"),
+            description: String::from_str(env, "desc"),
+            token: token.clone(),
+            status,
+            total_amount: 1_000_000,
+            milestone_amount: 100_000,
+            reviewers: soroban_sdk::Vec::new(env),
+            total_milestones: 1,
+            milestones_paid_out: 0,
+            escrow_balance: 0,
+            funders: soroban_sdk::Vec::new(env),
+            reason: None,
+            timestamp: env.ledger().timestamp(),
+            require_compliance: None,
+        };
+        Storage::set_grant(env, id, &grant);
     }
 
     #[test]
@@ -374,5 +413,22 @@ mod tests {
 
         let stream_after = Storage::get_stream(&env, stream_id).unwrap();
         assert_eq!(stream_after.end_ledger, original_end + 10);
+    }
+
+    #[test]
+    fn test_create_stream_rejects_nonexistent_grant() {
+        let (env, sender, recipient, token, _) = setup();
+        // Grant 999 was never created.
+        let result = create_stream(&env, &sender, &recipient, 999, &token, 100, 100);
+        assert_eq!(result, Err(ContractError::GrantNotFound));
+    }
+
+    #[test]
+    fn test_create_stream_rejects_inactive_grant() {
+        let (env, sender, recipient, token, _) = setup();
+        create_active_grant(&env, 2, &sender, &token, GrantStatus::Cancelled);
+
+        let result = create_stream(&env, &sender, &recipient, 2, &token, 100, 100);
+        assert_eq!(result, Err(ContractError::InvalidState));
     }
 }
