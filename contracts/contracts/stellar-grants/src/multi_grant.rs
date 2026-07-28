@@ -3,7 +3,9 @@ use crate::storage::keys::{DataKey, GrantKey};
 use crate::storage::Storage;
 use crate::types::{
     GrantPortfolio, GrantStatus, MultiGrantBatchResult, PortfolioFilter, PortfolioStats,
+    WhitelistScope,
 };
+use crate::whitelist;
 use soroban_sdk::{Address, Env, Vec};
 
 /// Return portfolio stats for an owner address.
@@ -309,6 +311,13 @@ fn add_reviewer_to_grant(
         return Ok(());
     }
 
+    // Issue #815: enforce the same GlobalReviewer whitelist gate that
+    // internal_grant_create applies at grant-creation time, so a reviewer
+    // excluded from the whitelist can't be added post-creation instead.
+    if !whitelist::is_allowed(env, reviewer, &WhitelistScope::GlobalReviewer) {
+        return Err(ContractError::AddressNotWhitelisted);
+    }
+
     // Add reviewer
     grant.reviewers.push_back(reviewer.clone());
     Storage::set_grant(env, grant_id, &grant);
@@ -598,5 +607,40 @@ mod tests {
 
         let balance = total_escrow_balance(&env, &owner, &token);
         assert_eq!(balance, 300);
+    }
+
+    #[test]
+    fn test_batch_add_reviewer_enforces_global_whitelist() {
+        use crate::types::WhitelistMode;
+
+        let env = soroban_sdk::Env::default();
+        env.mock_all_auths();
+        let admin = Address::generate(&env);
+        let owner = Address::generate(&env);
+        let reviewer = Address::generate(&env);
+
+        create_grant(&env, 1, &owner, Vec::new(&env), GrantStatus::Active, 1000);
+
+        Storage::set_global_admin(&env, &admin);
+        whitelist::set_mode(&env, &admin, &WhitelistScope::GlobalReviewer, WhitelistMode::Restricted)
+            .unwrap();
+
+        let mut grant_ids = Vec::new(&env);
+        grant_ids.push_back(1);
+
+        // Not whitelisted: batch_add_reviewer should fail for this grant.
+        let result = batch_add_reviewer(&env, &owner, grant_ids.clone(), &reviewer).unwrap();
+        assert_eq!(result.successful, 0);
+        assert_eq!(result.failed, 1);
+        let grant = Storage::get_grant(&env, 1).unwrap();
+        assert!(!grant.reviewers.contains(reviewer.clone()));
+
+        // Whitelist the reviewer; the same call should now succeed.
+        whitelist::add(&env, &admin, &reviewer, &WhitelistScope::GlobalReviewer).unwrap();
+        let result = batch_add_reviewer(&env, &owner, grant_ids, &reviewer).unwrap();
+        assert_eq!(result.successful, 1);
+        assert_eq!(result.failed, 0);
+        let grant = Storage::get_grant(&env, 1).unwrap();
+        assert!(grant.reviewers.contains(reviewer));
     }
 }
