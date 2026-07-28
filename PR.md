@@ -90,3 +90,10 @@ test result: ok. 9 passed; 0 failed    (token_swap::tests, incl. all 4 original 
 - `swap_and_pay`'s signature change (new leading `payer` parameter) is breaking but necessary — happy to adjust the parameter name/position if you'd prefer a different convention.
 - The two design decisions above (treasury mechanism, treasury entry-point gating) are exactly the open questions #681 asked to be documented — flagging both explicitly for discussion in case you'd prefer a different call.
 - The pre-existing `cargo test` breakage described above is unrelated to this PR and not fixed here, per scope — happy to open a separate tracked issue for it if useful.
+
+---
+
+Closes #681
+Closes #682
+Closes #683
+Closes #684
