@@ -138,7 +138,7 @@ pub fn withdraw_stream(
     if stream.recipient != *recipient {
         return Err(ContractError::Unauthorized);
     }
-    if stream.status != StreamStatus::Active {
+    if stream.status != StreamStatus::Active && stream.status != StreamStatus::Paused {
         return Err(ContractError::StreamNotActive);
     }
 
@@ -177,10 +177,12 @@ pub fn withdraw_stream(
 
 /// Compute how many tokens have accrued since stream start up to current ledger.
 pub fn accrued_amount(env: &Env, stream: &PaymentStream) -> i128 {
-    if stream.status != StreamStatus::Active {
-        return 0;
-    }
-    let current = env.ledger().sequence();
+    let current = match stream.status {
+        StreamStatus::Active => env.ledger().sequence(),
+        StreamStatus::Paused => stream.paused_at_ledger,
+        _ => return 0,
+    };
+
     let elapsed = if current >= stream.end_ledger {
         (stream.end_ledger - stream.start_ledger) as i128
     } else {
@@ -413,6 +415,18 @@ mod tests {
 
         let stream_after = Storage::get_stream(&env, stream_id).unwrap();
         assert_eq!(stream_after.end_ledger, original_end + 10);
+    }
+
+    #[test]
+    fn test_recipient_can_withdraw_accrued_balance_after_pause() {
+        let (env, sender, recipient, token, _) = setup();
+        let stream_id = create_stream(&env, &sender, &recipient, 1, &token, 100, 100).unwrap();
+
+        env.ledger().with_mut(|li| li.sequence_number += 30);
+        pause_stream(&env, &sender, stream_id).unwrap();
+
+        let withdrawn = withdraw_stream(&env, &recipient, stream_id).unwrap();
+        assert_eq!(withdrawn, 3_000);
     }
 
     #[test]
