@@ -207,6 +207,26 @@ pub enum BountyKey {
     Submitters(u64),
 }
 
+#[contracttype]
+#[derive(Clone)]
+pub enum DaoKey {
+    Proposal(u64),
+    Counter,
+    Vote(u64, Address),
+    ModeEnabled,
+    VotingPeriod,
+    QuorumVotes,
+}
+
+/// Separate from the legacy singleton `DataKey::Treasury` (a single payout
+/// address) — this backs the per-token spendable ledger in `treasury.rs`.
+#[contracttype]
+#[derive(Clone)]
+pub enum TreasuryKey {
+    ManagerAddress,
+    Balance(Address),
+}
+
 // ── Structured DataKey ────────────────────────────────────────────────────────
 
 #[contracttype]
@@ -231,6 +251,8 @@ pub enum DataKey {
     Matching(MatchingKey),
     Provenance(ProvenanceKey),
     ReviewerReward(ReviewerRewardKey),
+    Dao(DaoKey),
+    TreasuryLedger(TreasuryKey),
 
     // Streaming
     Stream(u32),

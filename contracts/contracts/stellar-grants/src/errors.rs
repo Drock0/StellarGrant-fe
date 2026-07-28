@@ -185,4 +185,6 @@ pub enum ContractError {
     LockupAlreadyRevoked = 144,
     // Params (#700)
     DaoVoteRequired = 145,
+    // Token swap (#683): no real DEX integration exists yet
+    SwapNotImplemented = 146,
 }
