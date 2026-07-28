@@ -803,7 +803,9 @@ impl StellarGrantsContract {
     ) -> Result<(), ContractError> {
         emergency::require_not_paused(&env)?;
         crate::grant_pause::require_not_paused(&env, grant_id)?;
+        circuit_breaker::require_open(&env, ProtocolModule::Grants)?;
         recipient.require_auth();
+        rate_limit::check_and_increment(&env, &recipient, RateLimitAction::MilestoneSubmit)?;
 
         let batch_len = submissions.len();
         if batch_len == 0 {
