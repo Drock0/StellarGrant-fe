@@ -4,7 +4,7 @@ mod tests {
     use crate::storage::Storage;
     use crate::types::{
         AmendmentStatus, AuditAction, ChainId, ContractError, EscrowLifecycleState, Grant,
-        GrantFund, GrantStatus, Milestone, MilestoneState,
+        GrantFund, GrantStatus, Milestone, MilestoneState, PublicReviewSignal,
     };
     use crate::StellarGrantsContract;
     use crate::StellarGrantsContractClient;
@@ -869,5 +869,64 @@ mod tests {
             .provenance_proof_hash(&record.id)
             .expect("hash computed");
         assert_eq!(hash1, hash2);
+    }
+
+    // ── Issue #807: open_review emergency pause gates ───────────────────────
+
+    #[test]
+    fn test_open_review_emergency_pause_gates() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let (client, admin, _contract_id) = setup_test(&env);
+        client.set_global_admin(&admin, &admin);
+
+        let reviewer = Address::generate(&env);
+        let voter = Address::generate(&env);
+        let grant_id = 1u64;
+        let milestone_idx = 0u32;
+
+        // Unpaused: submission succeeds.
+        client.open_review_submit(
+            &reviewer,
+            &grant_id,
+            &milestone_idx,
+            &PublicReviewSignal::Positive,
+            &String::from_str(&env, "Great milestone"),
+        );
+
+        // Unpaused: mark helpful succeeds.
+        client.open_review_mark_helpful(&voter, &grant_id, &milestone_idx, &reviewer);
+
+        // Pause contract.
+        let reason = String::from_str(&env, "Emergency maintenance");
+        client.pause(&admin, &reason);
+
+        // Paused: open_review_submit fails with ContractPaused error.
+        let res_submit = client.try_open_review_submit(
+            &reviewer,
+            &grant_id,
+            &milestone_idx,
+            &PublicReviewSignal::Positive,
+            &String::from_str(&env, "Post-pause review"),
+        );
+        assert_eq!(res_submit, Err(Ok(ContractError::ContractPaused.into())));
+
+        // Paused: open_review_mark_helpful fails with ContractPaused error.
+        let res_helpful =
+            client.try_open_review_mark_helpful(&voter, &grant_id, &milestone_idx, &reviewer);
+        assert_eq!(res_helpful, Err(Ok(ContractError::ContractPaused.into())));
+
+        // Unpause contract.
+        client.unpause(&admin);
+
+        // Unpaused again: operations succeed.
+        client.open_review_submit(
+            &reviewer,
+            &grant_id,
+            &milestone_idx,
+            &PublicReviewSignal::Positive,
+            &String::from_str(&env, "Updated review post-unpause"),
+        );
+        client.open_review_mark_helpful(&voter, &grant_id, &milestone_idx, &reviewer);
     }
 }

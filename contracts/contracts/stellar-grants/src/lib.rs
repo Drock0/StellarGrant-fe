@@ -3373,6 +3373,7 @@ impl StellarGrantsContract {
         signal: PublicReviewSignal,
         comment: String,
     ) -> Result<(), ContractError> {
+        emergency::require_not_paused(&env)?;
         open_review::submit_review(&env, &reviewer, grant_id, milestone_idx, signal, comment)
     }
 
@@ -3383,6 +3384,7 @@ impl StellarGrantsContract {
         milestone_idx: u32,
         reviewer: Address,
     ) -> Result<(), ContractError> {
+        emergency::require_not_paused(&env)?;
         open_review::mark_helpful(&env, &voter, grant_id, milestone_idx, &reviewer)
     }
 
