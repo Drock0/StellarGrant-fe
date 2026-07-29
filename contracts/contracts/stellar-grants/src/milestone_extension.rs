@@ -296,7 +296,15 @@ mod tests {
 
         env.ledger().with_mut(|li| li.timestamp = 500);
 
-        request_extension(&env, &owner, 1, 0, 2000, String::from_str(&env, "Need more time")).unwrap();
+        request_extension(
+            &env,
+            &owner,
+            1,
+            0,
+            2000,
+            String::from_str(&env, "Need more time"),
+        )
+        .unwrap();
 
         let req = get_request(&env, 1, 0).unwrap();
         assert_eq!(req.status, ExtensionStatus::Pending);

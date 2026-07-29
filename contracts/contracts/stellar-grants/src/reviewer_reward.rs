@@ -181,7 +181,11 @@ pub fn claim_rewards(
 
     // Transfer from contract to reviewer
     crate::reentrancy::protect_external_call(env, || {
-        token::Client::new(env, token).transfer(&env.current_contract_address(), reviewer, &claimable);
+        token::Client::new(env, token).transfer(
+            &env.current_contract_address(),
+            reviewer,
+            &claimable,
+        );
         Ok(())
     })?;
 

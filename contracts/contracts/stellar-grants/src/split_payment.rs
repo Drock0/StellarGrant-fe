@@ -1,4 +1,5 @@
 use crate::escrow;
+use crate::events::Events;
 use crate::storage::Storage;
 use crate::types::{ContractError, PaymentSplit, SplitRecipient};
 use soroban_sdk::{Address, Env, Vec};
@@ -60,6 +61,9 @@ pub fn execute_split(
     let split = Storage::get_payment_split(env, grant_id, milestone_idx)
         .ok_or(ContractError::InvalidState)?;
 
+    let grant = Storage::get_grant(env, grant_id).ok_or(ContractError::GrantNotFound)?;
+    let token = grant.token.clone();
+
     let recipients_len = split.recipients.len();
     let mut distributed: i128 = 0;
 
@@ -76,6 +80,15 @@ pub fn execute_split(
         if share > 0 {
             escrow::release(env, grant_id, &r.recipient, share)?;
             distributed += share;
+            // Emit PayeeReceipt for each split recipient
+            Events::emit_payee_receipt(
+                env,
+                grant_id,
+                r.recipient.clone(),
+                token.clone(),
+                share,
+                Some(milestone_idx),
+            );
         }
     }
     Ok(())
@@ -112,8 +125,14 @@ mod tests {
 
         let recipients = vec![
             &env,
-            SplitRecipient { recipient: r1.clone(), share_bps: 6000 },
-            SplitRecipient { recipient: r2.clone(), share_bps: 4000 },
+            SplitRecipient {
+                recipient: r1.clone(),
+                share_bps: 6000,
+            },
+            SplitRecipient {
+                recipient: r2.clone(),
+                share_bps: 4000,
+            },
         ];
 
         register_split(&env, &owner, 1, 0, recipients).unwrap();
@@ -135,7 +154,10 @@ mod tests {
 
         let recipients = vec![
             &env,
-            SplitRecipient { recipient: r1, share_bps: 5000 },
+            SplitRecipient {
+                recipient: r1,
+                share_bps: 5000,
+            },
         ];
 
         register_split(&env, &owner, 1, 0, recipients).unwrap();
@@ -166,7 +188,10 @@ mod tests {
 
         let recipients = vec![
             &env,
-            SplitRecipient { recipient: r1, share_bps: 10000 },
+            SplitRecipient {
+                recipient: r1,
+                share_bps: 10000,
+            },
         ];
 
         register_split(&env, &owner, 1, 5, recipients).unwrap();

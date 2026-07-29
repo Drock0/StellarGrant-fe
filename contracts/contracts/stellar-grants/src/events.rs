@@ -38,14 +38,6 @@ pub struct GrantCompleted {
 
 #[contractevent]
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct FinalRefund {
-    pub grant_id: u64,
-    pub funder: Address,
-    pub amount: i128,
-}
-
-#[contractevent]
-#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ContributorRegistered {
     pub contributor: Address,
     pub name: String,
@@ -261,6 +253,30 @@ pub struct ClawbackCancelled {
     pub timestamp: u64,
 }
 
+// ── Issue #135: Machine-readable receipts ───────────────────────────────────────
+
+#[contractevent]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PayerReceipt {
+    pub grant_id: u64,
+    pub funder: Address,
+    pub token: Address,
+    pub amount: i128,
+    pub memo: Option<String>,
+    pub timestamp: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PayeeReceipt {
+    pub grant_id: u64,
+    pub recipient: Address,
+    pub token: Address,
+    pub amount: i128,
+    pub milestone_idx: Option<u32>,
+    pub timestamp: u64,
+}
+
 // ── Issue #515: Reputation event ──────────────────────────────────────────────
 
 #[contractevent]
@@ -456,15 +472,6 @@ impl Events {
             total_paid,
             remaining_balance,
             timestamp: env.ledger().timestamp(),
-        };
-        event.publish(env);
-    }
-
-    pub fn emit_final_refund(env: &Env, grant_id: u64, funder: Address, amount: i128) {
-        let event = FinalRefund {
-            grant_id,
-            funder,
-            amount,
         };
         event.publish(env);
     }
@@ -781,6 +788,46 @@ impl Events {
             grant_id,
             milestone_idx,
             cancelled_by,
+            timestamp: env.ledger().timestamp(),
+        };
+        event.publish(env);
+    }
+
+    // ── Issue #135: Machine-readable receipt emit methods ─────────────────────
+
+    pub fn emit_payer_receipt(
+        env: &Env,
+        grant_id: u64,
+        funder: Address,
+        token: Address,
+        amount: i128,
+        memo: Option<String>,
+    ) {
+        let event = PayerReceipt {
+            grant_id,
+            funder,
+            token,
+            amount,
+            memo,
+            timestamp: env.ledger().timestamp(),
+        };
+        event.publish(env);
+    }
+
+    pub fn emit_payee_receipt(
+        env: &Env,
+        grant_id: u64,
+        recipient: Address,
+        token: Address,
+        amount: i128,
+        milestone_idx: Option<u32>,
+    ) {
+        let event = PayeeReceipt {
+            grant_id,
+            recipient,
+            token,
+            amount,
+            milestone_idx,
             timestamp: env.ledger().timestamp(),
         };
         event.publish(env);

@@ -439,6 +439,55 @@ pub struct ProtocolConfig {
     pub multisig_escrow_threshold: u32,
 }
 
+// ── Issue #681: DAO Governance ───────────────────────────────────────────────
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DaoProposal {
+    pub id: u64,
+    pub proposer: Address,
+    pub title: String,
+    pub description: String,
+    pub proposal_type: DaoProposalType,
+    pub status: DaoProposalStatus,
+    pub votes_for: u64,
+    pub votes_against: u64,
+    pub created_at: u64,
+    pub voting_deadline: u64,
+    pub executed_at: Option<u64>,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum DaoProposalStatus {
+    Active,
+    Passed,
+    Rejected,
+    Executed,
+    Cancelled,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum DaoProposalType {
+    UpdateConfig(ProtocolConfig),
+    ChangeAdmin(Address),
+    TreasuryWithdrawal(Address, Address, i128), // (token, to, amount)
+    Generic,
+}
+
+// ── Issue #681: Treasury Ledger (separate concept from the simple
+// Storage::get_treasury/set_treasury payout address used by slash_reviewer —
+// see PR description for the design rationale) ───────────────────────────────
+
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TreasurySnapshot {
+    pub token: Address,
+    pub balance: i128,
+    pub taken_at: u64,
+}
+
 // ── Issue #632: Contributor Verification ───────────────────────────────────
 
 #[contracttype]
@@ -1014,13 +1063,12 @@ pub enum ProtocolModule {
     Dao = 3,
     Staking = 4,
     Vesting = 5,
-    YieldEscrow = 6,
-    MatchingPool = 7,
-    Crowdfund = 8,
-    Insurance = 9,
-    Relay = 10,
-    TokenSwap = 11,
-    Oracle = 12,
+    MatchingPool = 6,
+    Crowdfund = 7,
+    Insurance = 8,
+    Relay = 9,
+    TokenSwap = 10,
+    Oracle = 11,
 }
 
 #[contracttype]
