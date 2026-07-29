@@ -206,23 +206,44 @@ mod tests {
 
         // Proprietary
         let r = attach_license(
-            &env, &owner, 2, 0, String::from_str(&env, "PROPRIETARY"),
-            LicenseType::Proprietary, rights.clone(), String::from_str(&env, ""),
-        ).unwrap();
+            &env,
+            &owner,
+            2,
+            0,
+            String::from_str(&env, "PROPRIETARY"),
+            LicenseType::Proprietary,
+            rights.clone(),
+            String::from_str(&env, ""),
+        )
+        .unwrap();
         assert_eq!(r.license_type, LicenseType::Proprietary);
 
         // CreativeCommons
         let r = attach_license(
-            &env, &owner, 2, 0, String::from_str(&env, "CC-BY-4.0"),
-            LicenseType::CreativeCommons, rights.clone(), String::from_str(&env, ""),
-        ).unwrap();
+            &env,
+            &owner,
+            2,
+            0,
+            String::from_str(&env, "CC-BY-4.0"),
+            LicenseType::CreativeCommons,
+            rights.clone(),
+            String::from_str(&env, ""),
+        )
+        .unwrap();
         assert_eq!(r.license_type, LicenseType::CreativeCommons);
 
         // Custom
         let r = attach_license(
-            &env, &owner, 2, 0, String::from_str(&env, "CUSTOM"),
-            LicenseType::Custom, rights, String::from_str(&env, "Special terms"),
-        ).unwrap();
+            &env,
+            &owner,
+            2,
+            0,
+            String::from_str(&env, "CUSTOM"),
+            LicenseType::Custom,
+            rights,
+            String::from_str(&env, "Special terms"),
+        )
+        .unwrap();
         assert_eq!(r.license_type, LicenseType::Custom);
     }
 }

@@ -3,7 +3,9 @@
 /// the scope had no real effect. These tests exercise the real contract
 /// entrypoints to confirm the gate is now enforced.
 use soroban_sdk::{testutils::Address as TestAddress, Address, Env, String, Vec};
-use stellar_grants::{StellarGrantsContract, StellarGrantsContractClient, WhitelistMode, WhitelistScope};
+use stellar_grants::{
+    StellarGrantsContract, StellarGrantsContractClient, WhitelistMode, WhitelistScope,
+};
 
 fn setup() -> (Env, StellarGrantsContractClient<'static>, Address) {
     let env = Env::default();

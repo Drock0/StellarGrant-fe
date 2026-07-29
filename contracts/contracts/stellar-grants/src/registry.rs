@@ -138,7 +138,10 @@ mod tests {
         let page = get_contributors_page(&env, 0, 10);
         assert_eq!(page.len(), 1);
         assert_eq!(page.get(0).unwrap().address, addr);
-        assert_eq!(page.get(0).unwrap().entry_type, RegistryEntryType::Contributor);
+        assert_eq!(
+            page.get(0).unwrap().entry_type,
+            RegistryEntryType::Contributor
+        );
         assert!(page.get(0).unwrap().is_active);
     }
 

@@ -30,7 +30,9 @@ fn make_reviewers(env: &Env, count: u32) -> Vec<Address> {
 #[test]
 fn test_milestone_submission_advances_last_updated_and_export_filter() {
     let (env, client, owner, admin) = setup();
-    let token_id = env.register_stellar_asset_contract_v2(admin.clone()).address();
+    let token_id = env
+        .register_stellar_asset_contract_v2(admin.clone())
+        .address();
     let reviewers = make_reviewers(&env, 1);
 
     let grant_id = client.grant_create(
@@ -75,18 +77,26 @@ fn test_milestone_submission_advances_last_updated_and_export_filter() {
     // include this grant, since it was updated after that timestamp.
     let page = client.export_grants(&0, &10, &Some(baseline));
     let found = page.items.iter().any(|g| g.id == grant_id);
-    assert!(found, "grant should appear in incremental export after mutation");
+    assert!(
+        found,
+        "grant should appear in incremental export after mutation"
+    );
 
     // Filtering with a cutoff at or after the submission timestamp excludes it again.
     let page_after = client.export_grants(&0, &10, &Some(after_submit));
     let found_after = page_after.items.iter().any(|g| g.id == grant_id);
-    assert!(!found_after, "grant should not appear once cutoff is at/after its last update");
+    assert!(
+        !found_after,
+        "grant should not appear once cutoff is at/after its last update"
+    );
 }
 
 #[test]
 fn test_grant_cancellation_advances_last_updated() {
     let (env, client, owner, admin) = setup();
-    let token_id = env.register_stellar_asset_contract_v2(admin.clone()).address();
+    let token_id = env
+        .register_stellar_asset_contract_v2(admin.clone())
+        .address();
     let reviewers = make_reviewers(&env, 2);
 
     let grant_id = client.grant_create(
@@ -107,7 +117,11 @@ fn test_grant_cancellation_advances_last_updated() {
     let before_cancel = client.last_global_update();
     env.ledger().with_mut(|li| li.timestamp += 100);
 
-    client.grant_cancel(&grant_id, &owner, &String::from_str(&env, "No longer needed"));
+    client.grant_cancel(
+        &grant_id,
+        &owner,
+        &String::from_str(&env, "No longer needed"),
+    );
 
     let after_cancel = client.last_global_update();
     assert!(after_cancel > before_cancel);

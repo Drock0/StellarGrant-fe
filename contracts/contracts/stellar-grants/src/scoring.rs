@@ -478,9 +478,7 @@ mod tests {
             define_rubric(&env, &admin, name, weights).unwrap()
         });
 
-        let result = env.as_contract(&contract_id, || {
-            score_contributor(&env, &c, id).unwrap()
-        });
+        let result = env.as_contract(&contract_id, || score_contributor(&env, &c, id).unwrap());
         assert_eq!(result.total_score, 1000);
     }
 
