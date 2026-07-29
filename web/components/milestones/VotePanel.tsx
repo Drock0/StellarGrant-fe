@@ -40,11 +40,17 @@ function ReviewerRow({
       Pending
     </span>
   ) : vote === "approve" ? (
-    <Badge variant="success" size="sm">✓ Approved</Badge>
+    <Badge variant="success" size="sm">
+      ✓ Approved
+    </Badge>
   ) : vote === "reject" ? (
-    <Badge variant="danger" size="sm">✗ Rejected</Badge>
+    <Badge variant="danger" size="sm">
+      ✗ Rejected
+    </Badge>
   ) : (
-    <Badge variant="muted" size="sm">— Pending</Badge>
+    <Badge variant="muted" size="sm">
+      — Pending
+    </Badge>
   );
 
   return (
@@ -80,7 +86,9 @@ export function VotePanel({
 
   const prevQuorumRef = useRef(quorumReached);
   const [showQuorumBanner, setShowQuorumBanner] = useState(false);
-  const [prevApprovalCount, setPrevApprovalCount] = useState(voteCount.approved);
+  const [prevApprovalCount, setPrevApprovalCount] = useState(
+    voteCount.approved,
+  );
 
   useEffect(() => {
     if (quorumReached && !prevQuorumRef.current) {
@@ -200,7 +208,8 @@ export function VotePanel({
       {reviewers.length > 0 ? (
         <div className="rounded-none border border-border-color/40 px-3 py-1">
           {reviewers.map((r) => {
-            const isWalletPending = isSubmitting && r === walletAddress && !voteByReviewer.get(r);
+            const isWalletPending =
+              isSubmitting && r === walletAddress && !voteByReviewer.get(r);
             return (
               <ReviewerRow
                 key={r}

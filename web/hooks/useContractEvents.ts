@@ -17,10 +17,7 @@ export interface ContractEvent {
 }
 
 export type ConnectionStatus =
-  | "connecting"
-  | "connected"
-  | "disconnected"
-  | "error";
+  "connecting" | "connected" | "disconnected" | "error";
 
 export interface UseContractEventsResult {
   events: ContractEvent[];
@@ -62,7 +59,6 @@ export function useContractEvents({
     if (!grantId) return;
 
     let active = true;
-    let pollTimer: ReturnType<typeof setInterval>;
 
     async function poll() {
       if (!active) return;
@@ -92,14 +88,12 @@ export function useContractEvents({
       } catch (err) {
         if (!active) return;
         setConnectionStatus("error");
-        setError(
-          err instanceof Error ? err : new Error("Poll failed"),
-        );
+        setError(err instanceof Error ? err : new Error("Poll failed"));
       }
     }
 
     poll();
-    pollTimer = setInterval(poll, 10_000);
+    const pollTimer = setInterval(poll, 10_000);
 
     return () => {
       active = false;
