@@ -9,7 +9,6 @@
     unused_variables,
     clippy::clone_on_copy,
     clippy::len_zero,
-    clippy::manual_checked_ops,
     clippy::manual_range_contains,
     clippy::manual_saturating_arithmetic,
     clippy::match_like_matches_macro,
@@ -541,7 +540,14 @@ impl StellarGrantsContract {
                     owner_amount = owner_amount.saturating_add(net_amount);
                 }
                 // Emit PayeeReceipt for each milestone payout
-                Events::emit_payee_receipt(&env, grant_id, grant.owner.clone(), grant.token.clone(), net_amount, Some(idx));
+                Events::emit_payee_receipt(
+                    env,
+                    grant_id,
+                    grant.owner.clone(),
+                    grant.token.clone(),
+                    net_amount,
+                    Some(idx),
+                );
             }
             if owner_amount > 0 {
                 let config: ProtocolConfig = config::get_config(env);
@@ -621,7 +627,14 @@ impl StellarGrantsContract {
         Events::emit_grant_completed(env, grant_id, total_paid, remaining_balance);
         // Emit PayeeReceipt for grant completion as final summary snapshot
         if total_paid > 0 {
-            Events::emit_payee_receipt(env, grant_id, grant.owner.clone(), grant.token.clone(), total_paid, None);
+            Events::emit_payee_receipt(
+                env,
+                grant_id,
+                grant.owner.clone(),
+                grant.token.clone(),
+                total_paid,
+                None,
+            );
         }
         Ok(())
     }
@@ -931,7 +944,14 @@ impl StellarGrantsContract {
             let grant = Storage::get_grant(&env, grant_id).ok_or(ContractError::GrantNotFound)?;
 
             Events::emit_grant_funded(&env, grant_id, funder.clone(), amount, grant.escrow_balance);
-            Events::emit_payer_receipt(&env, grant_id, funder.clone(), grant.token.clone(), amount, None);
+            Events::emit_payer_receipt(
+                &env,
+                grant_id,
+                funder.clone(),
+                grant.token.clone(),
+                amount,
+                None,
+            );
 
             audit::log(
                 &env,
