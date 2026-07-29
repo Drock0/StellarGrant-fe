@@ -14,10 +14,11 @@
  * Breadcrumb: Grants → Grant #id → Milestones → Milestone idx
  */
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useGrant } from "@/hooks/useGrant";
 import { useMilestone } from "@/hooks/useMilestone";
+import { useContractEvents } from "@/hooks/useContractEvents";
 import { useWalletStore } from "@/lib/store/walletStore";
 import { formatTokenAmount, getTokenMetadata } from "@/lib/tokens";
 import { Badge } from "@/components/ui/Badge";
@@ -137,7 +138,24 @@ function MilestoneDetailContent({
     error: milestoneError,
   } = useMilestone(grantId, milestoneIdx);
   const { address: walletAddress } = useWalletStore();
+  const { events, connectionStatus } = useContractEvents({ grantId });
   const [amountFormatted, setAmountFormatted] = useState<string>("");
+
+  const prevEventsLenRef = useRef(events.length);
+  useEffect(() => {
+    if (events.length > prevEventsLenRef.current) {
+      prevEventsLenRef.current = events.length;
+      const latest = events[events.length - 1];
+      if (
+        latest?.type === "MilestoneApproved" ||
+        latest?.type === "MilestoneRejected"
+      ) {
+        void refetch();
+      }
+    } else if (events.length < prevEventsLenRef.current) {
+      prevEventsLenRef.current = events.length;
+    }
+  }, [events, refetch]);
 
   // Set page title dynamically (generateMetadata cannot be used in "use client" pages)
   useEffect(() => {
@@ -252,6 +270,7 @@ function MilestoneDetailContent({
           reviewers={grant.reviewers}
           quorum={Math.ceil(grant.reviewers.length * 0.67)}
           threshold={0.67}
+          connectionStatus={connectionStatus}
         />
         {!isReviewer && !isRecipient && walletAddress && (
           <p className="font-mono text-xs text-text-muted">
