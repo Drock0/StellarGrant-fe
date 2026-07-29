@@ -1,8 +1,8 @@
-## Summary
+# Enforce MAX_RUBRIC_WEIGHTS in validate_rubric (#812)
 
 This PR bundles four related fixes to the `stellar-grants` Soroban contract on a single branch: one critical security fix, two fixes to the same broken token-swap call chain, and the full end-to-end integration of the previously-orphaned DAO governance module.
 
----
+Previously, `constants::MAX_RUBRIC_WEIGHTS` (defined as 6) was never checked in `scoring.rs`. An admin could define a rubric with an arbitrary number of `ScoringWeight` entries as long as their total basis points summed to 10,000 BPS. Every subsequent call to `score_contributor` and `rank_contributors` would iterate over all entries in the rubric's weight vector, turning scoring into an unbounded-cost operation.
 
 ## #682 — Fix Unauthorized Escrow Drain via `swap_and_pay` (critical security)
 
