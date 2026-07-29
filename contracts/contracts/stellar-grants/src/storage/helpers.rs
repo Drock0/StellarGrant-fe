@@ -1,23 +1,24 @@
 use super::keys::{
     ArbitrationKey, AutoApproveKey, BondKey, BountyKey, CollateralKey, ConditionalReleaseKey,
-    CrowdfundKey, DataKey, EscrowKey, GrantKey, GrantTimerKey, InsuranceKey, MilestoneKey, UserKey,
-    VotingKey, WaitlistKey,
+    CrowdfundKey, DaoKey, DataKey, EscrowKey, GrantKey, GrantTimerKey, InsuranceKey, MilestoneKey,
+    TreasuryKey, UserKey, VotingKey, WaitlistKey,
 };
+use crate::constants::{DEFAULT_DAO_QUORUM_VOTES, DEFAULT_DAO_VOTING_PERIOD_LEDGERS};
 use crate::types::{
     AcceptanceCriteria, Amendment, AnalyticsSnapshot, AuditEntry, AutoApproveConfig,
     AutoApproveRecord, BountyGrant, BountySubmission, BreakerState, ChecklistSubmission,
     ClawbackRequest, ComplianceAttestation, ContractError, ContractVersion, ContributorProfile,
-    CrowdfundCampaign, CrowdfundPledge, DexConfig, Dispute, EscrowAccount, EscrowState,
-    EvidenceSchema, FunderLedger, Grant, GrantCategory, GrantTag, GrantVersion, HookEvent,
-    HookRegistration, InsuranceClaim, InsurancePolicy, Invoice, LicenseRecord, MerkleCommitment,
-    MigrationRecord, Milestone, MilestoneDag, MilestoneNft, MultisigProposal, OracleConfig,
-    ParamRecord, PauseRecord, PaymentSplit, PaymentStream, ProtocolConfig, ProtocolMetrics,
-    ProtocolModule, PublicReview, QuadraticVoteRecord, RateLimitAction, RateLimitRecord,
-    RegistryEntry, RelayAllowance, RelayConfig, ReleaseCondition, RenewalProposal, RevenueEpoch,
-    ReviewerProfile, ReviewerRequest, Role, RoleAssignment, RollingWindow, ScoringRubric,
-    StakerEpochRecord, StructuredEvidence, SyndicateGrant, SyndicateMember, TimerRecord,
-    TokenMetric, TransferProposal, VerificationAttestation, VoiceCredits, VotingMechanism,
-    WaitlistConfig, WaitlistEntry,
+    CrowdfundCampaign, CrowdfundPledge, DaoProposal, DexConfig, Dispute, EscrowAccount,
+    EscrowState, EvidenceSchema, FunderLedger, Grant, GrantCategory, GrantTag, GrantVersion,
+    HookEvent, HookRegistration, InsuranceClaim, InsurancePolicy, Invoice, LicenseRecord,
+    MerkleCommitment, MigrationRecord, Milestone, MilestoneDag, MilestoneNft, MultisigProposal,
+    OracleConfig, ParamRecord, PauseRecord, PaymentSplit, PaymentStream, ProtocolConfig,
+    ProtocolMetrics, ProtocolModule, PublicReview, QuadraticVoteRecord, RateLimitAction,
+    RateLimitRecord, RegistryEntry, RelayAllowance, RelayConfig, ReleaseCondition, RenewalProposal,
+    RevenueEpoch, ReviewerProfile, ReviewerRequest, Role, RoleAssignment, RollingWindow,
+    ScoringRubric, StakerEpochRecord, StructuredEvidence, SyndicateGrant, SyndicateMember,
+    TimerRecord, TokenMetric, TransferProposal, VerificationAttestation, VoiceCredits,
+    VotingMechanism, WaitlistConfig, WaitlistEntry,
 };
 use crate::types::{
     Arbiter, ArbiterVote, ArbitrationCase, BondClaim, CollateralDeposit, CollateralRequirement,
@@ -2291,6 +2292,107 @@ impl Storage {
         submitters.push_back(submitter.clone());
         env.storage().persistent().set(&key, &submitters);
         Self::bump(env, &key);
+    }
+
+    // ── Issue #681: DAO Governance ────────────────────────────────────────────
+
+    pub fn next_dao_proposal_id(env: &Env) -> u64 {
+        let key = DataKey::Dao(DaoKey::Counter);
+        let mut id: u64 = env.storage().persistent().get(&key).unwrap_or(0);
+        id += 1;
+        env.storage().persistent().set(&key, &id);
+        id
+    }
+
+    pub fn get_dao_proposal(env: &Env, proposal_id: u64) -> Option<DaoProposal> {
+        let key = DataKey::Dao(DaoKey::Proposal(proposal_id));
+        let v = env.storage().persistent().get(&key);
+        if v.is_some() {
+            Self::bump(env, &key);
+        }
+        v
+    }
+
+    pub fn set_dao_proposal(env: &Env, proposal: &DaoProposal) {
+        let key = DataKey::Dao(DaoKey::Proposal(proposal.id));
+        env.storage().persistent().set(&key, proposal);
+        Self::bump(env, &key);
+    }
+
+    pub fn has_dao_voted(env: &Env, proposal_id: u64, voter: &Address) -> bool {
+        env.storage()
+            .persistent()
+            .has(&DataKey::Dao(DaoKey::Vote(proposal_id, voter.clone())))
+    }
+
+    pub fn record_dao_vote(env: &Env, proposal_id: u64, voter: &Address) {
+        let key = DataKey::Dao(DaoKey::Vote(proposal_id, voter.clone()));
+        env.storage().persistent().set(&key, &true);
+        Self::bump(env, &key);
+    }
+
+    pub fn is_dao_mode_enabled(env: &Env) -> bool {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Dao(DaoKey::ModeEnabled))
+            .unwrap_or(false)
+    }
+
+    pub fn set_dao_mode_enabled(env: &Env, enabled: bool) {
+        env.storage()
+            .persistent()
+            .set(&DataKey::Dao(DaoKey::ModeEnabled), &enabled);
+    }
+
+    pub fn get_dao_voting_period_ledgers(env: &Env) -> u32 {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Dao(DaoKey::VotingPeriod))
+            .unwrap_or(DEFAULT_DAO_VOTING_PERIOD_LEDGERS)
+    }
+
+    pub fn set_dao_voting_period_ledgers(env: &Env, ledgers: u32) {
+        env.storage()
+            .persistent()
+            .set(&DataKey::Dao(DaoKey::VotingPeriod), &ledgers);
+    }
+
+    pub fn get_dao_quorum_votes(env: &Env) -> u64 {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Dao(DaoKey::QuorumVotes))
+            .unwrap_or(DEFAULT_DAO_QUORUM_VOTES)
+    }
+
+    pub fn set_dao_quorum_votes(env: &Env, quorum: u64) {
+        env.storage()
+            .persistent()
+            .set(&DataKey::Dao(DaoKey::QuorumVotes), &quorum);
+    }
+
+    // ── Issue #681: Treasury ledger (separate from Storage::get_treasury/
+    // set_treasury — see PR description for the design rationale) ─────────────
+
+    pub fn get_treasury_balance(env: &Env, token: &Address) -> i128 {
+        env.storage()
+            .persistent()
+            .get(&DataKey::TreasuryLedger(TreasuryKey::Balance(
+                token.clone(),
+            )))
+            .unwrap_or(0)
+    }
+
+    pub fn set_treasury_balance(env: &Env, token: &Address, balance: i128) {
+        let key = DataKey::TreasuryLedger(TreasuryKey::Balance(token.clone()));
+        env.storage().persistent().set(&key, &balance);
+        Self::bump(env, &key);
+    }
+
+    pub fn set_treasury_address(env: &Env, treasury: &Address) {
+        env.storage().persistent().set(
+            &DataKey::TreasuryLedger(TreasuryKey::ManagerAddress),
+            treasury,
+        );
     }
 }
 

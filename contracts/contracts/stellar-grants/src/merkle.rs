@@ -55,6 +55,15 @@ pub fn verify_proof(env: &Env, grant_id: u64, milestone_idx: u32, proof: &Merkle
         return false;
     };
 
+    if commitment.leaf_count == 0 || proof.leaf_index >= commitment.leaf_count {
+        return false;
+    }
+
+    let expected_depth = 32 - (commitment.leaf_count - 1).leading_zeros();
+    if proof.siblings.len() != expected_depth {
+        return false;
+    }
+
     let mut hash = hash_leaf(env, &proof.leaf);
     let mut idx = proof.leaf_index;
 
@@ -185,9 +194,30 @@ mod tests {
             let tampered = MerkleProof {
                 leaf: Bytes::from_array(&env, b"leaf-a-tampered"),
                 leaf_index: 0,
-                siblings,
+                siblings: siblings.clone(),
             };
             assert!(!verify_proof(&env, grant_id, milestone_idx, &tampered));
+
+            let out_of_bounds_index = MerkleProof {
+                leaf: leaves.get(0).unwrap(),
+                leaf_index: 4,
+                siblings: siblings.clone(),
+            };
+            assert!(!verify_proof(
+                &env,
+                grant_id,
+                milestone_idx,
+                &out_of_bounds_index
+            ));
+
+            let mut short_siblings = Vec::new(&env);
+            short_siblings.push_back(h1);
+            let wrong_depth = MerkleProof {
+                leaf: leaves.get(0).unwrap(),
+                leaf_index: 0,
+                siblings: short_siblings,
+            };
+            assert!(!verify_proof(&env, grant_id, milestone_idx, &wrong_depth));
 
             let _ = h0;
             let _ = h3;
