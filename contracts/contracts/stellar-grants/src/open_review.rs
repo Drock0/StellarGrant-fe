@@ -3,7 +3,7 @@
 /// on a milestone. Reviews are visible to formal reviewers but do not affect governance votes.
 use soroban_sdk::{Address, Env, String, Vec};
 
-use crate::constants::MAX_PUBLIC_REVIEW_COMMENT_LEN;
+use crate::constants::{MAX_PUBLIC_REVIEWS_PER_MILESTONE, MAX_PUBLIC_REVIEW_COMMENT_LEN};
 use crate::errors::ContractError;
 use crate::events::Events;
 use crate::storage::Storage;
@@ -56,6 +56,9 @@ pub fn submit_review(
     if let Some(idx) = found_idx {
         reviews.set(idx, review.clone());
     } else {
+        if reviews.len() >= MAX_PUBLIC_REVIEWS_PER_MILESTONE {
+            return Err(ContractError::TooManyPublicReviews);
+        }
         reviews.push_back(review.clone());
     }
 
@@ -275,5 +278,54 @@ mod tests {
 
         let result = submit_review(&env, &reviewer, 1, 0, PublicReviewSignal::Positive, s);
         assert_eq!(result, Err(ContractError::CommentTooLong));
+    }
+
+    #[test]
+    fn submit_review_rejects_when_cap_reached() {
+        let env = Env::default();
+        env.mock_all_auths();
+
+        let grant_id = 1u64;
+        let milestone_idx = 0u32;
+        let mut first_reviewer: Option<Address> = None;
+
+        for _ in 0..MAX_PUBLIC_REVIEWS_PER_MILESTONE {
+            let reviewer = Address::generate(&env);
+            if first_reviewer.is_none() {
+                first_reviewer = Some(reviewer.clone());
+            }
+            submit_review(
+                &env,
+                &reviewer,
+                grant_id,
+                milestone_idx,
+                PublicReviewSignal::Positive,
+                String::from_str(&env, "Good"),
+            )
+            .unwrap();
+        }
+
+        // 51st reviewer should be rejected
+        let extra_reviewer = Address::generate(&env);
+        let result = submit_review(
+            &env,
+            &extra_reviewer,
+            grant_id,
+            milestone_idx,
+            PublicReviewSignal::Positive,
+            String::from_str(&env, "Extra"),
+        );
+        assert_eq!(result, Err(ContractError::TooManyPublicReviews));
+
+        // Existing reviewer can still update their review
+        let update_result = submit_review(
+            &env,
+            &first_reviewer.unwrap(),
+            grant_id,
+            milestone_idx,
+            PublicReviewSignal::Neutral,
+            String::from_str(&env, "Updated comment"),
+        );
+        assert!(update_result.is_ok());
     }
 }
