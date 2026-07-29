@@ -1,6 +1,6 @@
 use soroban_sdk::{Address, Env, String, Vec};
 
-use crate::constants::BASIS_POINTS_SCALE;
+use crate::constants::{BASIS_POINTS_SCALE, MAX_RUBRIC_WEIGHTS};
 use crate::errors::ContractError;
 use crate::storage::Storage;
 use crate::types::{ScoreResult, ScoringDimension, ScoringRubric, ScoringWeight};
@@ -14,7 +14,7 @@ fn require_global_admin(env: &Env, admin: &Address) -> Result<(), ContractError>
 }
 
 pub fn validate_rubric(weights: &Vec<ScoringWeight>) -> Result<(), ContractError> {
-    if weights.is_empty() {
+    if weights.is_empty() || weights.len() > MAX_RUBRIC_WEIGHTS {
         return Err(ContractError::InvalidWeights);
     }
     let mut sum: u32 = 0;
@@ -510,5 +510,71 @@ mod tests {
         });
         // effective_raw = 1000 - 750 = 250, score = 250 * 5000 / 10000 = 125
         assert_eq!(result.total_score, 125);
+    }
+
+    #[test]
+    fn test_max_rubric_weights_boundary() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(StellarGrantsContract, ());
+        let admin = setup_admin(&env, &contract_id);
+
+        let mut weights_max: Vec<ScoringWeight> = Vec::new(&env);
+        weights_max.push_back(ScoringWeight {
+            dimension: ScoringDimension::DeliverySpeed,
+            weight_bps: 1666,
+            invert: false,
+        });
+        weights_max.push_back(ScoringWeight {
+            dimension: ScoringDimension::ApprovalRate,
+            weight_bps: 1666,
+            invert: false,
+        });
+        weights_max.push_back(ScoringWeight {
+            dimension: ScoringDimension::ReputationScore,
+            weight_bps: 1666,
+            invert: false,
+        });
+        weights_max.push_back(ScoringWeight {
+            dimension: ScoringDimension::TotalEarned,
+            weight_bps: 1666,
+            invert: false,
+        });
+        weights_max.push_back(ScoringWeight {
+            dimension: ScoringDimension::DisputeRate,
+            weight_bps: 1666,
+            invert: false,
+        });
+        weights_max.push_back(ScoringWeight {
+            dimension: ScoringDimension::ReviewerSatisfaction,
+            weight_bps: 1670,
+            invert: false,
+        });
+
+        let name = String::from_str(&env, "MaxWeights");
+        let id = env.as_contract(&contract_id, || {
+            define_rubric(&env, &admin, name, weights_max).unwrap()
+        });
+        assert_eq!(id, 1);
+
+        let mut weights_exceeded: Vec<ScoringWeight> = Vec::new(&env);
+        for _ in 0..6 {
+            weights_exceeded.push_back(ScoringWeight {
+                dimension: ScoringDimension::DeliverySpeed,
+                weight_bps: 1428,
+                invert: false,
+            });
+        }
+        weights_exceeded.push_back(ScoringWeight {
+            dimension: ScoringDimension::DeliverySpeed,
+            weight_bps: 1432,
+            invert: false,
+        });
+
+        let name_exceeded = String::from_str(&env, "ExceededWeights");
+        let result = env.as_contract(&contract_id, || {
+            define_rubric(&env, &admin, name_exceeded, weights_exceeded)
+        });
+        assert_eq!(result, Err(ContractError::InvalidWeights));
     }
 }
