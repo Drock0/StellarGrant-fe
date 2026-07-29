@@ -460,7 +460,14 @@ mod tests {
     use crate::types::{Grant, GrantFund, GrantStatus};
     use soroban_sdk::String;
 
-    fn create_grant(env: &soroban_sdk::Env, id: u64, owner: &Address, reviewers: Vec<Address>, status: GrantStatus, escrow: i128) {
+    fn create_grant(
+        env: &soroban_sdk::Env,
+        id: u64,
+        owner: &Address,
+        reviewers: Vec<Address>,
+        status: GrantStatus,
+        escrow: i128,
+    ) {
         let grant = Grant {
             id,
             owner: owner.clone(),
@@ -482,7 +489,11 @@ mod tests {
         Storage::set_grant(env, id, &grant);
         // Register in owner index
         let key = DataKey::Grant(GrantKey::OwnerIndex(owner.clone()));
-        let mut ids: Vec<u64> = env.storage().persistent().get(&key).unwrap_or_else(|| Vec::new(env));
+        let mut ids: Vec<u64> = env
+            .storage()
+            .persistent()
+            .get(&key)
+            .unwrap_or_else(|| Vec::new(env));
         ids.push_back(id);
         env.storage().persistent().set(&key, &ids);
     }
@@ -494,9 +505,23 @@ mod tests {
         let reviewer = Address::generate(&env);
         let mut reviewers = Vec::new(&env);
 
-        create_grant(&env, 1, &owner, reviewers.clone(), GrantStatus::Active, 1000);
+        create_grant(
+            &env,
+            1,
+            &owner,
+            reviewers.clone(),
+            GrantStatus::Active,
+            1000,
+        );
         reviewers.push_back(Address::generate(&env));
-        create_grant(&env, 2, &owner, reviewers.clone(), GrantStatus::Active, 2000);
+        create_grant(
+            &env,
+            2,
+            &owner,
+            reviewers.clone(),
+            GrantStatus::Active,
+            2000,
+        );
 
         let mut grant_ids = Vec::new(&env);
         grant_ids.push_back(1);
@@ -535,8 +560,22 @@ mod tests {
 
         let mut reviewers = Vec::new(&env);
         reviewers.push_back(reviewer.clone());
-        create_grant(&env, 1, &owner, reviewers.clone(), GrantStatus::Active, 1000);
-        create_grant(&env, 2, &owner, reviewers.clone(), GrantStatus::Active, 2000);
+        create_grant(
+            &env,
+            1,
+            &owner,
+            reviewers.clone(),
+            GrantStatus::Active,
+            1000,
+        );
+        create_grant(
+            &env,
+            2,
+            &owner,
+            reviewers.clone(),
+            GrantStatus::Active,
+            2000,
+        );
 
         let mut grant_ids = Vec::new(&env);
         grant_ids.push_back(1);
@@ -572,7 +611,14 @@ mod tests {
         let mut reviewers = Vec::new(&env);
         reviewers.push_back(reviewer.clone());
         create_grant(&env, 1, &owner, reviewers.clone(), GrantStatus::Active, 500);
-        create_grant(&env, 2, &owner, reviewers.clone(), GrantStatus::Completed, 0);
+        create_grant(
+            &env,
+            2,
+            &owner,
+            reviewers.clone(),
+            GrantStatus::Completed,
+            0,
+        );
 
         let stats = get_portfolio_stats(&env, &owner);
         assert_eq!(stats.total_grants, 2);
@@ -590,13 +636,22 @@ mod tests {
 
         // Create grants with specific tokens to test balance aggregation
         let grant1 = Grant {
-            id: 1, owner: owner.clone(),
-            title: String::from_str(&env, "t"), description: String::from_str(&env, "d"),
-            token: token.clone(), status: GrantStatus::Active,
-            total_amount: 1000, milestone_amount: 100,
-            reviewers: Vec::new(&env), total_milestones: 3, milestones_paid_out: 0,
-            escrow_balance: 300, funders: Vec::new(&env), reason: None,
-            timestamp: 0, require_compliance: None,
+            id: 1,
+            owner: owner.clone(),
+            title: String::from_str(&env, "t"),
+            description: String::from_str(&env, "d"),
+            token: token.clone(),
+            status: GrantStatus::Active,
+            total_amount: 1000,
+            milestone_amount: 100,
+            reviewers: Vec::new(&env),
+            total_milestones: 3,
+            milestones_paid_out: 0,
+            escrow_balance: 300,
+            funders: Vec::new(&env),
+            reason: None,
+            timestamp: 0,
+            require_compliance: None,
         };
         Storage::set_grant(&env, 1, &grant1);
 
@@ -622,8 +677,13 @@ mod tests {
         create_grant(&env, 1, &owner, Vec::new(&env), GrantStatus::Active, 1000);
 
         Storage::set_global_admin(&env, &admin);
-        whitelist::set_mode(&env, &admin, &WhitelistScope::GlobalReviewer, WhitelistMode::Restricted)
-            .unwrap();
+        whitelist::set_mode(
+            &env,
+            &admin,
+            &WhitelistScope::GlobalReviewer,
+            WhitelistMode::Restricted,
+        )
+        .unwrap();
 
         let mut grant_ids = Vec::new(&env);
         grant_ids.push_back(1);

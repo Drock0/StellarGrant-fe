@@ -1063,13 +1063,12 @@ pub enum ProtocolModule {
     Dao = 3,
     Staking = 4,
     Vesting = 5,
-    YieldEscrow = 6,
-    MatchingPool = 7,
-    Crowdfund = 8,
-    Insurance = 9,
-    Relay = 10,
-    TokenSwap = 11,
-    Oracle = 12,
+    MatchingPool = 6,
+    Crowdfund = 7,
+    Insurance = 8,
+    Relay = 9,
+    TokenSwap = 10,
+    Oracle = 11,
 }
 
 #[contracttype]

@@ -1,8 +1,9 @@
 use soroban_sdk::{Address, Env};
 
+use crate::circuit_breaker;
 use crate::errors::ContractError;
 use crate::storage::{DataKey, Storage};
-use crate::types::{LockupRecord, LockupStatus};
+use crate::types::{LockupRecord, LockupStatus, ProtocolModule};
 
 fn get_lockup_key(grant_id: u64, milestone_idx: u32) -> DataKey {
     DataKey::Lockup(grant_id, milestone_idx)
@@ -29,6 +30,7 @@ pub fn attach_lockup(
     lockup_duration_seconds: u64,
 ) -> Result<(), ContractError> {
     owner.require_auth();
+    circuit_breaker::require_open(env, ProtocolModule::Vesting)?;
 
     let grant = Storage::get_grant(env, grant_id).ok_or(ContractError::GrantNotFound)?;
     if grant.owner != *owner {
@@ -69,6 +71,7 @@ pub fn lock_payout(
     token: &Address,
     amount: i128,
 ) -> Result<(), ContractError> {
+    circuit_breaker::require_open(env, ProtocolModule::Vesting)?;
     let admin = Storage::get_global_admin(env).ok_or(ContractError::Unauthorized)?;
     if admin != *holder {
         return Err(ContractError::Unauthorized);
@@ -107,6 +110,7 @@ pub fn release(
     milestone_idx: u32,
 ) -> Result<i128, ContractError> {
     holder.require_auth();
+    circuit_breaker::require_open(env, ProtocolModule::Vesting)?;
 
     let key = get_lockup_key(grant_id, milestone_idx);
     let mut record: LockupRecord = env
@@ -151,6 +155,7 @@ pub fn revoke(
     grant_id: u64,
     milestone_idx: u32,
 ) -> Result<(), ContractError> {
+    circuit_breaker::require_open(env, ProtocolModule::Vesting)?;
     admin.require_auth();
 
     if Storage::get_global_admin(env) != Some(admin.clone()) {
@@ -495,7 +500,7 @@ mod tests {
     #[test]
     fn is_unlocked_true_after_time() {
         let (env, _admin, owner) = setup();
-        attach_lockup(&env, &env.ledger().timestamp() + 100, 1, 0, 100).unwrap();
+        attach_lockup(&env, &owner, 1, 0, 100).unwrap();
         set_ledger(&env, 1000 + 200, 120);
         assert!(is_unlocked(&env, 1, 0));
     }
@@ -628,5 +633,114 @@ mod tests {
         // Grant 2 not yet unlocked (unlocks at 1200)
         let err = release(&env, &admin, 2, 0);
         assert_eq!(err, Err(ContractError::NotYetUnlocked));
+    }
+
+    // ── circuit breaker integration ─────────────────────────────────────────
+
+    #[test]
+    fn vesting_circuit_breaker_blocks_attach_lockup() {
+        let (env, admin, owner) = setup();
+
+        // Trip the Vesting circuit breaker
+        crate::circuit_breaker::trip(
+            &env,
+            &admin,
+            crate::types::ProtocolModule::Vesting,
+            soroban_sdk::String::from_str(&env, "test"),
+            None,
+        )
+        .unwrap();
+
+        // attach_lockup should fail with ModuleTripped
+        let err = attach_lockup(&env, &owner, 1, 0, 604_800);
+        assert_eq!(err, Err(ContractError::ModuleTripped));
+    }
+
+    #[test]
+    fn vesting_circuit_breaker_blocks_lock_payout() {
+        let (env, admin, owner) = setup();
+        attach_lockup(&env, &owner, 1, 0, 604_800).unwrap();
+
+        // Trip the Vesting circuit breaker
+        crate::circuit_breaker::trip(
+            &env,
+            &admin,
+            crate::types::ProtocolModule::Vesting,
+            soroban_sdk::String::from_str(&env, "test"),
+            None,
+        )
+        .unwrap();
+
+        let fake_token = Address::generate(&env);
+        let err = lock_payout(&env, 1, 0, &admin, &fake_token, 5_000);
+        assert_eq!(err, Err(ContractError::ModuleTripped));
+    }
+
+    #[test]
+    fn vesting_circuit_breaker_blocks_release() {
+        let (env, admin, owner) = setup();
+        attach_lockup(&env, &owner, 1, 0, 100).unwrap();
+        let fake_token = Address::generate(&env);
+        lock_payout(&env, 1, 0, &admin, &fake_token, 5_000).unwrap();
+        set_ledger(&env, 1200, 140);
+
+        // Trip the Vesting circuit breaker
+        crate::circuit_breaker::trip(
+            &env,
+            &admin,
+            crate::types::ProtocolModule::Vesting,
+            soroban_sdk::String::from_str(&env, "test"),
+            None,
+        )
+        .unwrap();
+
+        let err = release(&env, &admin, 1, 0);
+        assert_eq!(err, Err(ContractError::ModuleTripped));
+    }
+
+    #[test]
+    fn vesting_circuit_breaker_blocks_revoke() {
+        let (env, admin, owner) = setup();
+        attach_lockup(&env, &owner, 1, 0, 604_800).unwrap();
+
+        // Trip the Vesting circuit breaker
+        crate::circuit_breaker::trip(
+            &env,
+            &admin,
+            crate::types::ProtocolModule::Vesting,
+            soroban_sdk::String::from_str(&env, "test"),
+            None,
+        )
+        .unwrap();
+
+        let err = revoke(&env, &admin, 1, 0);
+        assert_eq!(err, Err(ContractError::ModuleTripped));
+    }
+
+    #[test]
+    fn vesting_circuit_breaker_reset_allows_operations() {
+        let (env, admin, owner) = setup();
+
+        // Trip the Vesting circuit breaker
+        crate::circuit_breaker::trip(
+            &env,
+            &admin,
+            crate::types::ProtocolModule::Vesting,
+            soroban_sdk::String::from_str(&env, "test"),
+            None,
+        )
+        .unwrap();
+
+        // Verify attach_lockup is blocked
+        let err = attach_lockup(&env, &owner, 1, 0, 604_800);
+        assert_eq!(err, Err(ContractError::ModuleTripped));
+
+        // Reset the breaker
+        crate::circuit_breaker::reset(&env, &admin, crate::types::ProtocolModule::Vesting).unwrap();
+
+        // attach_lockup should now succeed
+        attach_lockup(&env, &owner, 1, 0, 604_800).unwrap();
+        let record = get_lockup(&env, 1, 0).unwrap();
+        assert_eq!(record.status, LockupStatus::Active);
     }
 }

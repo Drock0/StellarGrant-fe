@@ -237,7 +237,11 @@ pub fn claim_rewards(
     Storage::set_referral_rewards(env, referrer, token, 0);
 
     crate::reentrancy::protect_external_call(env, || {
-        token::Client::new(env, token).transfer(&env.current_contract_address(), referrer, &pending);
+        token::Client::new(env, token).transfer(
+            &env.current_contract_address(),
+            referrer,
+            &pending,
+        );
         Ok(())
     })?;
 

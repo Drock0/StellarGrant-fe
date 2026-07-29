@@ -37,7 +37,6 @@ pub fn pause(env: &Env, admin: &Address, reason: String) -> Result<(), ContractE
         ProtocolModule::Dao,
         ProtocolModule::Staking,
         ProtocolModule::Vesting,
-        ProtocolModule::YieldEscrow,
         ProtocolModule::MatchingPool,
         ProtocolModule::Crowdfund,
         ProtocolModule::Insurance,

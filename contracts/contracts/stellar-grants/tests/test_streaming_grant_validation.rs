@@ -18,7 +18,9 @@ fn setup() -> (Env, StellarGrantsContractClient<'static>, Address, Address) {
 #[test]
 fn test_create_stream_rejects_nonexistent_grant() {
     let (env, client, owner, admin) = setup();
-    let token_id = env.register_stellar_asset_contract_v2(admin.clone()).address();
+    let token_id = env
+        .register_stellar_asset_contract_v2(admin.clone())
+        .address();
     let recipient = <Address as TestAddress>::generate(&env);
 
     let token_admin_client = soroban_sdk::token::StellarAssetClient::new(&env, &token_id);
@@ -32,7 +34,9 @@ fn test_create_stream_rejects_nonexistent_grant() {
 #[test]
 fn test_create_stream_rejects_cancelled_grant() {
     let (env, client, owner, admin) = setup();
-    let token_id = env.register_stellar_asset_contract_v2(admin.clone()).address();
+    let token_id = env
+        .register_stellar_asset_contract_v2(admin.clone())
+        .address();
     let recipient = <Address as TestAddress>::generate(&env);
     let reviewers = Vec::new(&env);
 
@@ -59,7 +63,9 @@ fn test_create_stream_rejects_cancelled_grant() {
 #[test]
 fn test_create_stream_succeeds_for_active_grant() {
     let (env, client, owner, admin) = setup();
-    let token_id = env.register_stellar_asset_contract_v2(admin.clone()).address();
+    let token_id = env
+        .register_stellar_asset_contract_v2(admin.clone())
+        .address();
     let recipient = <Address as TestAddress>::generate(&env);
     let reviewers = Vec::new(&env);
 

@@ -36,7 +36,6 @@ pub struct GrantCompleted {
     pub timestamp: u64,
 }
 
-
 #[contractevent]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ContributorRegistered {

@@ -22,7 +22,9 @@ fn setup() -> (Env, StellarGrantsContractClient<'static>, Address, Address) {
 #[test]
 fn test_batch_add_reviewer_blocked_when_not_whitelisted() {
     let (env, client, owner, admin) = setup();
-    let token_id = env.register_stellar_asset_contract_v2(admin.clone()).address();
+    let token_id = env
+        .register_stellar_asset_contract_v2(admin.clone())
+        .address();
     let reviewer = <Address as TestAddress>::generate(&env);
 
     let grant_id = client.grant_create(
@@ -57,7 +59,9 @@ fn test_batch_add_reviewer_blocked_when_not_whitelisted() {
 #[test]
 fn test_batch_add_reviewer_succeeds_once_whitelisted() {
     let (env, client, owner, admin) = setup();
-    let token_id = env.register_stellar_asset_contract_v2(admin.clone()).address();
+    let token_id = env
+        .register_stellar_asset_contract_v2(admin.clone())
+        .address();
     let reviewer = <Address as TestAddress>::generate(&env);
 
     let grant_id = client.grant_create(
