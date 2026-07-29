@@ -1,6 +1,5 @@
 "use client";
 
-<<<<<<< HEAD:web/components/milestones/VotePanel.tsx
 import { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useVoting } from "@/hooks/useVoting";
